@@ -81,7 +81,7 @@ select:focus-visible {
 .app-shell {
   width: min(940px, 100%);
   margin: 0 auto;
-  padding: 18px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -106,7 +106,7 @@ select:focus-visible {
 
 .top-tabs {
   display: flex;
-  gap: 8px;
+  gap: 6px;
 }
 
 .eyebrow {
@@ -225,8 +225,8 @@ select:focus-visible {
 .ghost-btn,
 .toggle-btn {
   border-radius: 8px;
-  min-height: 46px;
-  padding: 0 14px;
+  min-height: 42px;
+  padding: 0 12px;
   border: 1px solid var(--border-strong);
   font-size: 1rem;
   line-height: 1.5;
@@ -344,7 +344,7 @@ select:focus-visible {
   margin: 0 auto;
   display: grid;
   grid-template-rows: auto 1fr auto;
-  gap: 10px;
+  gap: 8px;
   min-height: calc(100dvh - 170px);
 }
 
@@ -356,13 +356,13 @@ select:focus-visible {
 
 .messages-scroll {
   overflow-y: auto;
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  background: var(--surface-elevated);
-  padding: 10px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 6px 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .msg {
@@ -390,14 +390,29 @@ select:focus-visible {
 }
 
 .msg-content {
-  white-space: pre-wrap;
   font-size: 1rem;
-  line-height: 1.6;
+  line-height: 1.55;
+}
+
+.msg-line {
+  margin: 0 0 8px;
+}
+
+.msg-line:last-child {
+  margin-bottom: 0;
+}
+
+.msg-line-list {
+  margin-top: 2px;
+  margin-bottom: 10px;
 }
 
 .composer {
   border-top: 1px solid var(--border-strong);
   padding-top: 10px;
+  position: sticky;
+  bottom: 0;
+  background: var(--surface);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -409,7 +424,7 @@ select:focus-visible {
 
 .composer-actions {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 8px;
 }
 
@@ -442,6 +457,10 @@ select:focus-visible {
   flex-wrap: wrap;
   gap: 12px;
   color: var(--text-muted);
+}
+
+.legal-links-row a {
+  font-size: 0.95rem;
 }
 
 .onboarding-wizard {
@@ -519,7 +538,8 @@ blockquote {
   }
 
   .top-tabs {
-    width: 100%;
+    width: auto;
+    align-self: flex-start;
   }
 
   .time-row,
@@ -531,5 +551,23 @@ blockquote {
   .composer-actions,
   .wizard-actions {
     flex-direction: column;
+  }
+
+  .chat-layout {
+    width: 100%;
+    min-height: calc(100dvh - 150px);
+    padding: 12px;
+  }
+
+  .msg {
+    max-width: 100%;
+  }
+
+  .msg-user {
+    max-width: 94%;
+  }
+
+  .msg-assistant {
+    max-width: 100%;
   }
 }

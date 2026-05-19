@@ -128,6 +128,14 @@ Transformar o Medusa em SaaS B2C individual com autenticação real, onboarding 
 - Fluxos mantidos: login/cadastro, consentimento, onboarding wizard, check-in, chat, setup, termos/privacidade/crise.
 - Contraste validado (WCAG AA) para texto principal/secundário/botões/estados.
 
+### 2026-05-19 — Ajustes finos de chat mobile (sem alterar lógica)
+- Renderização de markdown no chat ajustada para não exibir `**` cru ao usuário (negrito renderizado).
+- Removidas bordas extras na lista de mensagens para reduzir efeito de “cards dentro de cards”.
+- Melhorada largura útil no mobile (padding reduzido e bolhas mais amplas).
+- Header/nav compactados e discretos.
+- Composer mantido fixo/visível no final; botão de voz removido do composer e movido para Setup como placeholder.
+- Preservação de quebras de linha/listas com espaçamento confortável no conteúdo das respostas.
+
 ## Status Atual por Fase
 - **Fase 1 (Foundation SaaS):** concluída
 - **Fase 2 (Onboarding + memória individual):** concluída no MVP

@@ -50,6 +50,14 @@ export function SettingsScreen({
           </button>
         </div>
 
+        <div className="setup-item">
+          <strong>Voz</strong>
+          <span>Recurso futuro. Ainda não disponível neste MVP.</span>
+          <button className="ghost-btn" disabled>
+            Voz em breve
+          </button>
+        </div>
+
         <div className="legal-links-row">
           <Link to="/terms">Termos</Link>
           <Link to="/privacy">Privacidade</Link>
