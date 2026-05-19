@@ -244,6 +244,22 @@ serve(async (request) => {
       .join("\n")
       .trim();
 
+    if (!reply) {
+      await writeAuditLog({
+        userId: user.id,
+        model: anthropicModel,
+        status: "empty_reply",
+      });
+
+      return new Response(
+        JSON.stringify({ error: "Claude retornou resposta vazia" }),
+        {
+          status: 502,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
     const usage = raw?.usage || {};
     await writeAuditLog({
       userId: user.id,
@@ -258,7 +274,7 @@ serve(async (request) => {
 
     return new Response(
       JSON.stringify({
-        reply: reply || "Sem resposta processável da Medusa.",
+        reply,
         model: anthropicModel,
       }),
       {

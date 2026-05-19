@@ -174,8 +174,12 @@ export async function callClaudeProxy(
   });
 
   if (error) throw error;
+  if (!data?.reply) {
+    throw new Error("Edge Function retornou sem resposta válida.");
+  }
+
   return {
-    reply: data?.reply ?? "Sem resposta da Medusa.",
+    reply: data.reply,
     model: data?.model ?? "claude",
   };
 }
