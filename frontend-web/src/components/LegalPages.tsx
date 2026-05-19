@@ -5,22 +5,22 @@ function LegalLayout({ title, children }: { title: string; children: ReactNode }
   return (
     <main className="app-shell legal-shell">
       <header className="panel">
-        <p className="eyebrow">MEDUSA • DOCUMENTOS LEGAIS</p>
+        <p className="eyebrow">Medusa • Documentos legais</p>
         <h1>{title}</h1>
         <p className="muted">
           Este documento é um modelo inicial e deve ser revisado por profissional jurídico antes do lançamento público.
         </p>
-        <div className="mode-row">
-          <Link className="chip chip-active" to="/">
+        <div className="legal-links-row">
+          <Link to="/">
             Voltar ao produto
           </Link>
-          <Link className="chip" to="/terms">
+          <Link to="/terms">
             Termos
           </Link>
-          <Link className="chip" to="/privacy">
+          <Link to="/privacy">
             Privacidade
           </Link>
-          <Link className="chip" to="/crisis">
+          <Link to="/crisis">
             Crise
           </Link>
         </div>

@@ -28,13 +28,12 @@ import {
 import type {
   Conversation,
   EnergyLevel,
-  MedusaMode,
   MemoryRow,
   Message,
   Profile,
 } from "./types/medusa";
 
-type AppTab = "chat" | "memory" | "setup";
+type AppTab = "chat" | "setup";
 
 function ConsentGate({
   loading,
@@ -47,7 +46,7 @@ function ConsentGate({
 
   return (
     <div className="screen compact">
-      <p className="eyebrow">CONSENTIMENTO</p>
+      <p className="eyebrow">Consentimento</p>
       <h2>Confirme os documentos legais para continuar</h2>
       <p className="muted">
         Versões atuais: Termos {TERMS_VERSION} / Privacidade {PRIVACY_VERSION}
@@ -213,10 +212,11 @@ function ProductApp() {
     }
   };
 
-  const handleSendMessage = async (text: string, mode: MedusaMode) => {
+  const handleSendMessage = async (text: string) => {
     if (!session || !conversation || !profile) return;
     setSendingChat(true);
     setError("");
+    const mode = "ACAO";
 
     try {
       const userMessage = await insertMessage({
@@ -319,7 +319,7 @@ function ProductApp() {
   if (loading) {
     return (
       <div className="app-shell">
-        <p className="muted">Carregando Medusa...</p>
+        <p className="muted">Carregando dados...</p>
       </div>
     );
   }
@@ -374,16 +374,14 @@ function ProductApp() {
   return (
     <div className="app-shell">
       <header className="top-bar">
-        <div>
-          <p className="eyebrow">MEDUSA</p>
-          <h1>Sincronização cognitiva/emocional</h1>
+        <div className="brand-block">
+          <p className="eyebrow">Medusa</p>
+          <h1 className="app-title">Sincronização cognitiva/emocional</h1>
+          <p className="muted">Energia atual: {currentEnergy}</p>
         </div>
         <nav className="top-tabs">
           <button className={`ghost-btn ${tab === "chat" ? "active-tab" : ""}`} onClick={() => setTab("chat")}>
             Chat
-          </button>
-          <button className={`ghost-btn ${tab === "memory" ? "active-tab" : ""}`} onClick={() => setTab("memory")}>
-            Memória
           </button>
           <button className={`ghost-btn ${tab === "setup" ? "active-tab" : ""}`} onClick={() => setTab("setup")}>
             Setup
@@ -401,11 +399,16 @@ function ProductApp() {
           onSend={handleSendMessage}
         />
       ) : null}
-      {tab === "memory" ? (
-        <MemoryScreen memory={memory} saving={savingMemory} onSave={handleSaveMemory} />
-      ) : null}
       {tab === "setup" ? (
-        <SettingsScreen session={session} resetting={resetting} onReset={handleReset} onSignOut={handleSignOut} />
+        <div className="setup-column">
+          <SettingsScreen
+            session={session}
+            resetting={resetting}
+            onReset={handleReset}
+            onSignOut={handleSignOut}
+          />
+          <MemoryScreen memory={memory} saving={savingMemory} onSave={handleSaveMemory} />
+        </div>
       ) : null}
     </div>
   );

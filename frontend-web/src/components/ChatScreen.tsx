@@ -1,20 +1,17 @@
 import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
 
-import type { EnergyLevel, MedusaMode, Message } from "../types/medusa";
+import type { EnergyLevel, Message } from "../types/medusa";
 
 interface ChatScreenProps {
   messages: Message[];
   sending?: boolean;
   energy: EnergyLevel;
-  onSend: (message: string, mode: MedusaMode) => Promise<void>;
+  onSend: (message: string) => Promise<void>;
 }
-
-const MODES: MedusaMode[] = ["ACAO", "FOCO", "PROCESSO", "TRAVA"];
 
 export function ChatScreen({ messages, sending = false, energy, onSend }: ChatScreenProps) {
   const [input, setInput] = useState("");
-  const [mode, setMode] = useState<MedusaMode>("ACAO");
 
   const canSend = useMemo(() => !!input.trim() && !sending, [input, sending]);
 
@@ -23,33 +20,19 @@ export function ChatScreen({ messages, sending = false, energy, onSend }: ChatSc
     if (!canSend) return;
     const message = input.trim();
     setInput("");
-    await onSend(message, mode);
+    await onSend(message);
   };
 
   return (
-    <section className="panel chat-panel">
-      <header className="panel-head">
-        <div>
-          <h3>Chat Medusa</h3>
-          <p className="muted">Energia atual: {energy} • resposta objetiva em até 3 passos.</p>
-        </div>
+    <section className="chat-layout" aria-live="polite">
+      <header className="chat-header">
+        <h2>Chat da Medusa</h2>
+        <p className="muted">Energia {energy}. Resposta objetiva em até 3 passos.</p>
       </header>
 
-      <div className="mode-row">
-        {MODES.map((item) => (
-          <button
-            key={item}
-            className={`chip ${mode === item ? "chip-active" : ""}`}
-            onClick={() => setMode(item)}
-          >
-            {item}
-          </button>
-        ))}
-      </div>
-
-      <div className="messages-scroll">
+      <div className="messages-scroll" role="log" aria-label="Histórico do chat">
         {messages.length === 0 ? (
-          <p className="muted">Sem histórico ainda. Faça uma pergunta objetiva.</p>
+          <p className="muted">Sem histórico ainda. Próximo passo: escreva uma pergunta objetiva.</p>
         ) : null}
 
         {messages.map((message) => (
@@ -63,7 +46,7 @@ export function ChatScreen({ messages, sending = false, energy, onSend }: ChatSc
         ))}
       </div>
 
-      <form className="composer" onSubmit={handleSubmit}>
+      <form className="composer" onSubmit={handleSubmit} aria-label="Enviar mensagem">
         <textarea
           className="input textarea composer-input"
           value={input}
@@ -75,7 +58,7 @@ export function ChatScreen({ messages, sending = false, energy, onSend }: ChatSc
             Voz (em breve)
           </button>
           <button type="submit" className="primary-btn" disabled={!canSend}>
-            {sending ? "Processando..." : "Enviar"}
+            {sending ? "Enviando..." : "Enviar"}
           </button>
         </div>
       </form>

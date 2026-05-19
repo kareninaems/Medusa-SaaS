@@ -21,6 +21,7 @@ export function MemoryScreen({ memory, saving = false, onSave }: MemoryScreenPro
   const [worked, setWorked] = useState("");
   const [didntWork, setDidntWork] = useState("");
   const [context, setContext] = useState("");
+  const [status, setStatus] = useState("");
 
   useEffect(() => {
     const contextLines = Array.isArray(memory?.context) ? memory?.context : [];
@@ -39,6 +40,7 @@ export function MemoryScreen({ memory, saving = false, onSave }: MemoryScreenPro
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    setStatus("");
     await onSave({
       patterns: toArray(patterns),
       triggers: toArray(triggers),
@@ -46,12 +48,13 @@ export function MemoryScreen({ memory, saving = false, onSave }: MemoryScreenPro
       didnt_work: toArray(didntWork),
       context: toArray(context),
     });
+    setStatus("Memória salva.");
   };
 
   return (
     <section className="panel">
-      <h3>Memória operacional</h3>
-      <p className="muted">Estrutura inicial para padrões, gatilhos e evidência iterativa.</p>
+      <h2>Memória</h2>
+      <p className="muted">Preencha apenas o necessário. Uma linha por item.</p>
 
       <form className="stack" onSubmit={handleSubmit}>
         <label className="field">
@@ -76,8 +79,9 @@ export function MemoryScreen({ memory, saving = false, onSave }: MemoryScreenPro
         </label>
 
         <button className="primary-btn" type="submit" disabled={saving}>
-          {saving ? "Salvando memória..." : "Salvar memória"}
+          {saving ? "Salvando" : "Salvar memória"}
         </button>
+        {status ? <p className="status-ok">{status}</p> : null}
       </form>
     </section>
   );

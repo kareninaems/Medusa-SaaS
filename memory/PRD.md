@@ -93,6 +93,30 @@ Transformar o Medusa em SaaS B2C individual com autenticação real, onboarding 
   - `/crisis` (CVV 188, SAMU 192, Polícia 190)
 - Validação local realizada em `http://localhost:3000` com screenshots de login e páginas legais.
 
+### 2026-05-19 — Redesign acessível neurodivergente (frontend-web)
+- Redesenhado o `/app/frontend-web` com foco em previsibilidade, calma visual e linguagem direta.
+- Mantida identidade Medusa (sem visual genérico de chatbot/SaaS comum) e sem landing de marketing.
+- UI simplificada com paleta escura suave e baixo estímulo:
+  - `#121417` fundo principal
+  - `#1B1F24` superfície
+  - `#242A31` superfície elevada
+  - `#606A75` bordas (ajuste mínimo para AA)
+  - acento `#8FBDA8`
+- Ajustes de acessibilidade:
+  - texto base 16px, line-height 1.6
+  - foco visível (`#D9B56D`)
+  - sem animações, sem gradientes/neon/blur/glassmorphism
+  - botões com rótulos explícitos e estados claros (salvando/enviando/erro/salvo)
+- Navegação mínima confirmada:
+  - header com **Chat + Setup**
+  - memória movida para dentro de Setup (não é aba principal)
+  - seletor de modo oculto no chat (usa padrão interno)
+- Onboarding convertido para wizard de 6 etapas (`x de 6`), uma pergunta principal por bloco.
+- Check-in simplificado para 3 botões grandes: `1 Baixa`, `2 Média`, `3 Alta`.
+- Chat com largura máxima ~760px, bolhas simples, composer confortável e placeholder discreto de voz.
+- Páginas legais (`/terms`, `/privacy`, `/crisis`) restilizadas sem alterar conteúdo jurídico.
+- Responsividade validada em mobile `390x844` sem overflow horizontal.
+
 ## Status Atual por Fase
 - **Fase 1 (Foundation SaaS):** concluída
 - **Fase 2 (Onboarding + memória individual):** concluída no MVP

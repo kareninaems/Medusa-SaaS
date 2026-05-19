@@ -59,9 +59,9 @@ export function AuthScreen({ onAuthDone }: AuthScreenProps) {
   return (
     <div className="auth-shell">
       <div className="auth-card">
-        <p className="eyebrow">MEDUSA</p>
+        <p className="eyebrow">Medusa</p>
         <h1>{mode === "login" ? "Entrar" : "Criar conta"}</h1>
-        <p className="auth-sub">Sincronização cognitiva/emocional em uso diário.</p>
+        <p className="auth-sub">Ferramenta de uso diário. Sem distrações.</p>
 
         <form className="stack" onSubmit={handleSubmit}>
           <div className="toggle-row">
@@ -121,6 +121,12 @@ export function AuthScreen({ onAuthDone }: AuthScreenProps) {
           {info ? <p className="status-ok">{info}</p> : null}
           {error ? <p className="status-error">{error}</p> : null}
         </form>
+
+        <footer className="auth-footer">
+          <a href="/terms">Termos</a>
+          <a href="/privacy">Privacidade</a>
+          <a href="/crisis">Crise</a>
+        </footer>
       </div>
     </div>
   );

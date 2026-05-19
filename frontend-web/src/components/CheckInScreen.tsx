@@ -13,9 +13,9 @@ export function CheckInScreen({ loading = false, defaultEnergy, onConfirm }: Che
 
   return (
     <div className="screen compact">
-      <p className="eyebrow">CHECK-IN</p>
-      <h2>Energia agora: 1, 2 ou 3</h2>
-      <p className="muted">A Medusa ajusta linguagem, timing e profundidade a partir deste ponto.</p>
+      <p className="eyebrow">Check-in</p>
+      <h2>Energia agora?</h2>
+      <p className="muted">Escolha um nível para iniciar o chat.</p>
 
       <div className="energy-grid">
         {[1, 2, 3].map((option) => (
@@ -25,9 +25,7 @@ export function CheckInScreen({ loading = false, defaultEnergy, onConfirm }: Che
             onClick={() => setEnergy(option as EnergyLevel)}
           >
             <span className="energy-number">{option}</span>
-            <span className="energy-label">
-              {option === 1 ? "baixo" : option === 2 ? "médio" : "alto"}
-            </span>
+            <span className="energy-label">{option === 1 ? "Baixa" : option === 2 ? "Média" : "Alta"}</span>
           </button>
         ))}
       </div>
