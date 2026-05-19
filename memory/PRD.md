@@ -46,12 +46,28 @@ Construir a versão Web SaaS da Medusa em `/app/frontend-web` (React + Vite + Su
   - `data-testid` adicionado nos controles críticos (auth, age gate, consent, onboarding, check-in, settings/legal).
   - Botões ajustados para touch target mínimo de 44px.
 
+### Iteração atual — Setup Documentos + consentimento explícito + memória por opções
+- **Setup > Documentos:**
+  - Lista de PDFs enviados por usuário com nome, data e status.
+  - Status suportados: `uploaded`, `awaiting_analysis`, `analyzed`, `error`.
+  - Exclusão por item remove metadata (`user_documents`) + arquivo em Storage.
+- **Consentimento explícito por documento:**
+  - Campos em `user_documents`: `analysis_consent_at`, `analysis_consent_version`.
+  - Ao consentir: status muda para `awaiting_analysis` e versão `2026-05` é persistida.
+  - Sem consentimento, não há análise automática de documento.
+- **Memória no Setup (preferência do usuário):**
+  - Conversão de caixas de texto para opções/chips com `Outro` opcional.
+  - Mantida persistência no mesmo formato (`patterns`, `triggers`, `worked`, `didnt_work`, `context`).
+
 ## Testes realizados
 - Bloqueio sem checkbox 18+ validado.
 - Fluxo 18+ → onboarding guiado → check-in validado (desktop/mobile).
 - Persistência de onboarding validada (relogin cai no check-in, sem retornar para onboarding).
-- Upload PDF testado em UI.
-- **Status upload no ambiente atual:** `Bucket not found` quando bucket/migration não aplicados no Supabase alvo.
+- Upload PDF validado com bucket privado e RLS.
+- Consentimento por documento validado (`analysis_status` → `awaiting_analysis`, `analysis_consent_at`, `analysis_consent_version=2026-05`).
+- Exclusão validada (metadata removida e arquivo inexistente após delete).
+- Isolamento A/B validado para metadata e acesso a arquivo no Storage.
+- Memória por opções/chips validada na UI e persistência em `memories` confirmada.
 
 ## Backlog Priorizado
 
@@ -61,9 +77,9 @@ Construir a versão Web SaaS da Medusa em `/app/frontend-web` (React + Vite + Su
 3. Revalidar upload PDF com sucesso ponta a ponta após migration.
 
 ### P1
-1. Exibir lista de documentos enviados (metadata `user_documents`) na UI.
-2. Fluxo explícito de consentimento por documento antes de qualquer análise por IA.
-3. Limpeza de documentos no reset (metadata + arquivo no bucket).
+1. Exibir badge visual mais forte para documento com consentimento registrado.
+2. Soft delete opcional com `deleted_at` (em vez de hard delete) para trilha de auditoria.
+3. Tela de detalhes por documento (sem IA) com histórico de mudanças de status.
 
 ### P2
 1. Extração de resumo de PDF (`extracted_summary`) com consentimento explícito.
