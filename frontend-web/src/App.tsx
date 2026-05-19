@@ -14,11 +14,14 @@ import { supabase } from "./lib/supabase";
 import {
   callClaudeProxy,
   confirmAge,
+  deleteUserDocument,
   ensureConversation,
   ensureProfile,
+  grantDocumentAnalysisConsent,
   getMemory,
   getMessages,
   insertMessage,
+  listUserDocuments,
   needsConsent,
   recordUserConsent,
   resetUserData,
@@ -33,6 +36,7 @@ import type {
   MemoryRow,
   Message,
   Profile,
+  UserDocument,
 } from "./types/medusa";
 
 type AppTab = "chat" | "setup";
@@ -115,6 +119,7 @@ function ProductApp() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [documents, setDocuments] = useState<UserDocument[]>([]);
   const [memory, setMemory] = useState<MemoryRow | null>(null);
   const [checkInEnergy, setCheckInEnergy] = useState<EnergyLevel | null>(null);
   const [checkInDone, setCheckInDone] = useState(false);
@@ -128,6 +133,8 @@ function ProductApp() {
   const [savingConsent, setSavingConsent] = useState(false);
   const [confirmingAge, setConfirmingAge] = useState(false);
   const [uploadingDocument, setUploadingDocument] = useState(false);
+  const [loadingDocuments, setLoadingDocuments] = useState(false);
+  const [activeDocumentActionId, setActiveDocumentActionId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   const onboardingMissing = useMemo(() => {
@@ -175,14 +182,16 @@ function ProductApp() {
       }
 
       const activeConversation = await ensureConversation(activeSession.user.id);
-      const [loadedMessages, loadedMemory] = await Promise.all([
+      const [loadedMessages, loadedMemory, loadedDocuments] = await Promise.all([
         getMessages(activeConversation.id),
         getMemory(activeSession.user.id),
+        listUserDocuments(activeSession.user.id),
       ]);
       setProfile(ensuredProfile);
       setConversation(activeConversation);
       setMessages(loadedMessages);
       setMemory(loadedMemory);
+      setDocuments(loadedDocuments);
       setCheckInEnergy(null);
       setCheckInDone(false);
       setTab("chat");
@@ -217,6 +226,7 @@ function ProductApp() {
         setProfile(null);
         setConversation(null);
         setMessages([]);
+      setDocuments([]);
         setMemory(null);
         setLoading(false);
       }
@@ -298,12 +308,55 @@ function ProductApp() {
     setUploadingDocument(true);
     setError("");
     try {
-      await uploadUserDocument(session.user.id, file);
+      const createdDocument = await uploadUserDocument(session.user.id, file);
+      setDocuments((current) => [createdDocument, ...current]);
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Falha no upload do documento");
       throw uploadError;
     } finally {
       setUploadingDocument(false);
+    }
+  };
+
+  const handleRefreshDocuments = async () => {
+    if (!session) return;
+    setLoadingDocuments(true);
+    setError("");
+    try {
+      const freshDocuments = await listUserDocuments(session.user.id);
+      setDocuments(freshDocuments);
+    } catch (documentsError) {
+      setError(documentsError instanceof Error ? documentsError.message : "Falha ao carregar documentos");
+    } finally {
+      setLoadingDocuments(false);
+    }
+  };
+
+  const handleGrantDocumentConsent = async (documentId: string) => {
+    if (!session) return;
+    setActiveDocumentActionId(documentId);
+    setError("");
+    try {
+      const updated = await grantDocumentAnalysisConsent(session.user.id, documentId);
+      setDocuments((current) => current.map((doc) => (doc.id === documentId ? updated : doc)));
+    } catch (consentError) {
+      setError(consentError instanceof Error ? consentError.message : "Falha ao salvar consentimento");
+    } finally {
+      setActiveDocumentActionId(null);
+    }
+  };
+
+  const handleDeleteDocument = async (document: UserDocument) => {
+    if (!session) return;
+    setActiveDocumentActionId(document.id);
+    setError("");
+    try {
+      await deleteUserDocument(session.user.id, document);
+      setDocuments((current) => current.filter((doc) => doc.id !== document.id));
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Falha ao excluir documento");
+    } finally {
+      setActiveDocumentActionId(null);
     }
   };
 
@@ -383,6 +436,7 @@ function ProductApp() {
     setError("");
     try {
       await resetUserData(session.user.id);
+      setDocuments([]);
       await bootstrap(session);
     } catch (resetError) {
       setError(resetError instanceof Error ? resetError.message : "Erro ao resetar dados");
@@ -517,6 +571,12 @@ function ProductApp() {
         <div className="setup-column">
           <SettingsScreen
             session={session}
+            documents={documents}
+            loadingDocuments={loadingDocuments}
+            activeDocumentActionId={activeDocumentActionId}
+            onGrantDocumentConsent={handleGrantDocumentConsent}
+            onDeleteDocument={handleDeleteDocument}
+            onRefreshDocuments={handleRefreshDocuments}
             resetting={resetting}
             onReset={handleReset}
             onSignOut={handleSignOut}

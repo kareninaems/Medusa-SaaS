@@ -452,6 +452,27 @@ select:focus-visible {
   background: var(--surface-elevated);
 }
 
+.documents-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.document-item {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--surface-soft);
+}
+
+.document-name {
+  margin: 0;
+  font-weight: 600;
+}
+
 .legal-links-row {
   display: flex;
   flex-wrap: wrap;

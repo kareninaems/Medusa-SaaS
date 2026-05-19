@@ -16,8 +16,11 @@ import type {
 
 const functionName = import.meta.env.VITE_SUPABASE_FUNCTION_NAME || "claude-proxy";
 export const AGE_CONFIRM_VERSION = "2026-05";
+export const DOCUMENT_ANALYSIS_CONSENT_VERSION = "2026-05";
 export const DOCUMENT_STORAGE_NOT_READY_MESSAGE =
   "Armazenamento de documentos ainda não configurado. Você pode continuar sem PDF.";
+export const DOCUMENT_SCHEMA_UPDATE_REQUIRED_MESSAGE =
+  "Atualize o schema de documentos no Supabase para habilitar consentimento por documento.";
 
 const PROFILE_COLUMNS = "*";
 
@@ -42,6 +45,8 @@ function mapDocumentUploadError(error: unknown): Error {
     normalized.includes("bucket not found") ||
     normalized.includes("storage") ||
     normalized.includes("relation \"user_documents\" does not exist") ||
+    normalized.includes("column user_documents") ||
+    normalized.includes("does not exist") ||
     normalized.includes("could not find the table") ||
     normalized.includes("permission denied") ||
     normalized.includes("policy");
@@ -167,16 +172,147 @@ export async function uploadUserDocument(userId: string, file: File): Promise<Us
       file_path: filePath,
       file_name: file.name,
       mime_type: file.type,
+      analysis_status: "uploaded",
+      analysis_consent_at: null,
+      analysis_consent_version: null,
+      deleted_at: null,
       extracted_summary: null,
     })
-    .select("id, user_id, file_path, file_name, mime_type, uploaded_at, extracted_summary")
+    .select(
+      "id, user_id, file_path, file_name, mime_type, uploaded_at, analysis_status, analysis_consent_at, analysis_consent_version, deleted_at, extracted_summary",
+    )
     .single();
 
   if (error) {
-    await supabase.storage.from("user-documents").remove([filePath]);
-    throw mapDocumentUploadError(error);
+    const fallbackMessage = (error.message || "").toLowerCase();
+    const missingColumns = fallbackMessage.includes("column user_documents") || fallbackMessage.includes("does not exist");
+
+    if (!missingColumns) {
+      await supabase.storage.from("user-documents").remove([filePath]);
+      throw mapDocumentUploadError(error);
+    }
+
+    const { data: fallbackData, error: fallbackError } = await supabase
+      .from("user_documents")
+      .insert({
+        user_id: userId,
+        file_path: filePath,
+        file_name: file.name,
+        mime_type: file.type,
+        extracted_summary: null,
+      })
+      .select("id, user_id, file_path, file_name, mime_type, uploaded_at, extracted_summary")
+      .single();
+
+    if (fallbackError) {
+      await supabase.storage.from("user-documents").remove([filePath]);
+      throw mapDocumentUploadError(fallbackError);
+    }
+
+    return {
+      ...(fallbackData as Omit<UserDocument, "analysis_status" | "analysis_consent_at" | "analysis_consent_version" | "deleted_at">),
+      analysis_status: "uploaded",
+      analysis_consent_at: null,
+      analysis_consent_version: null,
+      deleted_at: null,
+    } as UserDocument;
   }
   return data as UserDocument;
+}
+
+export async function listUserDocuments(userId: string): Promise<UserDocument[]> {
+  const { data, error } = await supabase
+    .from("user_documents")
+    .select(
+      "id, user_id, file_path, file_name, mime_type, uploaded_at, analysis_status, analysis_consent_at, analysis_consent_version, deleted_at, extracted_summary",
+    )
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .order("uploaded_at", { ascending: false });
+
+  if (!error) return (data ?? []) as UserDocument[];
+
+  const message = (error.message || "").toLowerCase();
+  const missingColumns = message.includes("column user_documents") || message.includes("does not exist");
+  if (!missingColumns) throw error;
+
+  const { data: fallbackData, error: fallbackError } = await supabase
+    .from("user_documents")
+    .select("id, user_id, file_path, file_name, mime_type, uploaded_at, extracted_summary")
+    .eq("user_id", userId)
+    .order("uploaded_at", { ascending: false });
+
+  if (fallbackError) throw fallbackError;
+
+  return (fallbackData ?? []).map((doc) => ({
+    ...(doc as Omit<UserDocument, "analysis_status" | "analysis_consent_at" | "analysis_consent_version" | "deleted_at">),
+    analysis_status: "uploaded",
+    analysis_consent_at: null,
+    analysis_consent_version: null,
+    deleted_at: null,
+  })) as UserDocument[];
+}
+
+export async function grantDocumentAnalysisConsent(userId: string, documentId: string): Promise<UserDocument> {
+  const consentAt = new Date().toISOString();
+
+  const { data: current, error: currentError } = await supabase
+    .from("user_documents")
+    .select("analysis_status")
+    .eq("id", documentId)
+    .eq("user_id", userId)
+    .single();
+  if (currentError) {
+    const msg = (currentError.message || "").toLowerCase();
+    if (msg.includes("column") || msg.includes("does not exist")) {
+      throw new Error(DOCUMENT_SCHEMA_UPDATE_REQUIRED_MESSAGE);
+    }
+    throw currentError;
+  }
+
+  const nextStatus = current?.analysis_status === "analyzed" ? "analyzed" : "awaiting_analysis";
+
+  const { data, error } = await supabase
+    .from("user_documents")
+    .update({
+      analysis_consent_at: consentAt,
+      analysis_consent_version: DOCUMENT_ANALYSIS_CONSENT_VERSION,
+      analysis_status: nextStatus,
+    })
+    .eq("id", documentId)
+    .eq("user_id", userId)
+    .select(
+      "id, user_id, file_path, file_name, mime_type, uploaded_at, analysis_status, analysis_consent_at, analysis_consent_version, deleted_at, extracted_summary",
+    )
+    .single();
+
+  if (error) {
+    const msg = (error.message || "").toLowerCase();
+    if (msg.includes("column") || msg.includes("does not exist")) {
+      throw new Error(DOCUMENT_SCHEMA_UPDATE_REQUIRED_MESSAGE);
+    }
+    throw error;
+  }
+  return data as UserDocument;
+}
+
+export async function deleteUserDocument(userId: string, document: Pick<UserDocument, "id" | "file_path">): Promise<void> {
+  const { error: storageError } = await supabase.storage.from("user-documents").remove([document.file_path]);
+
+  const storageMessage = storageError?.message?.toLowerCase() ?? "";
+  const canIgnoreStorageError =
+    storageMessage.includes("not found") || storageMessage.includes("object") || storageMessage.includes("no rows found");
+  if (storageError && !canIgnoreStorageError) {
+    throw storageError;
+  }
+
+  const { error } = await supabase
+    .from("user_documents")
+    .delete()
+    .eq("id", document.id)
+    .eq("user_id", userId);
+
+  if (error) throw error;
 }
 
 export async function ensureConversation(userId: string): Promise<Conversation> {
@@ -305,6 +441,19 @@ export async function resetUserData(userId: string): Promise<void> {
 
   const { error: deleteMemoryError } = await supabase.from("memories").delete().eq("user_id", userId);
   if (deleteMemoryError) throw deleteMemoryError;
+
+  const { data: docsToDelete, error: docsFetchError } = await supabase
+    .from("user_documents")
+    .select("file_path")
+    .eq("user_id", userId);
+  if (docsFetchError) throw docsFetchError;
+
+  if (docsToDelete && docsToDelete.length > 0) {
+    const paths = docsToDelete.map((doc) => doc.file_path).filter(Boolean);
+    if (paths.length > 0) {
+      await supabase.storage.from("user-documents").remove(paths);
+    }
+  }
 
   const { error: deleteDocumentsError } = await supabase.from("user_documents").delete().eq("user_id", userId);
   if (deleteDocumentsError) throw deleteDocumentsError;

@@ -1,0 +1,60 @@
+{
+  "summary": "Frontend-only validation executed for Setup Documents, per-document status/consent, delete flow, and A/B isolation. Setup section renders and lists user docs; delete removes document from list after refresh; A/B isolation passed by document-name visibility check. Per-document consent failed due missing DB migration columns (400 on Supabase user_documents queries).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Setup > Document list + per-document consent",
+        "issue": "Supabase REST returns 400 for user_documents selects with new columns; consent click does not persist and status remains unchanged.",
+        "affected_testIDs": [
+          "settings-documents-section",
+          "settings-documents-refresh-button",
+          "settings-document-consent-button-*",
+          "settings-document-status-*",
+          "settings-document-consent-*"
+        ]
+      },
+      {
+        "flow": "Per-document consent save",
+        "issue": "Pending DB migration/columns in user_documents. Missing schema support for one or more of: analysis_status, analysis_consent_at, analysis_consent_version, deleted_at (analysis_status query fails directly during consent).",
+        "affected_testIDs": [
+          "settings-document-consent-button-*"
+        ]
+      }
+    ],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/artifacts_iter2/auth_loaded.jpg",
+    "/app/test_reports/artifacts_iter2_retry1/auth_loaded.jpg",
+    "/app/test_reports/artifacts_iter2_retry1/user_a_setup.jpg",
+    "/app/test_reports/artifacts_iter2_retry1/user_b_setup.jpg",
+    "/root/.emergent/automation_output/20260519_221321/console_20260519_221321.log"
+  ],
+  "action_items": [
+    "Apply pending Supabase migration for user_documents new columns and constraints (see frontend-web/supabase/schema.sql and frontend-web/supabase/storage_user_documents_setup.sql).",
+    "Re-test consent after migration: status must change from Enviado to Aguardando análise (or keep Analisado if already analyzed), and consent timestamp/version must persist.",
+    "Verify API/UI error surfacing shows explicit migration guidance when schema is outdated, instead of only generic 400 resource failures."
+  ],
+  "critical_code_review_comments": [
+    "listUserDocuments/grantDocumentAnalysisConsent include fallback logic, but current env is still missing new columns, causing recurring 400 noise and blocked consent behavior.",
+    "Delete flow currently performs hard delete after storage removal; this worked in UI regression, but cannot confirm physical storage deletion purely from frontend view."
+  ],
+  "updated_files": [
+    "/app/test_reports/iteration_2.json"
+  ],
+  "success_rate": {
+    "backend": "N/A (not requested)",
+    "frontend": "75%"
+  },
+  "seed_data_creation": "No seed created. Used credentials from /app/memory/test_credentials.md. One existing test document (medusa-test.pdf) under user pdfok1779227957@test.com was deleted during delete-flow validation.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Use users pdfok1779227957@test.com and finalqa1779225467@test.com. Consent click currently does not persist because user_documents schema migration is not fully applied in this environment.",
+  "rca_of_issue": "Repro: Login as pdfok1779227957@test.com -> Check-in -> Setup -> Documentos -> click consent button. Observed: status remains 'Enviado', consent text unchanged; browser console logs 400 on Supabase REST queries selecting analysis_status/analysis_consent*/deleted_at. Root cause: environment schema for public.user_documents does not match frontend expected columns. Mitigation: execute migration adding analysis_status, analysis_consent_at, analysis_consent_version, deleted_at (plus check constraint), then retest consent + status transitions + refresh behavior."
+}

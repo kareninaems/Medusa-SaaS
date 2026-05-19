@@ -10,8 +10,19 @@ create table if not exists public.user_documents (
   file_name text,
   mime_type text,
   uploaded_at timestamptz not null default now(),
+  analysis_status text not null default 'uploaded' check (analysis_status in ('uploaded','awaiting_analysis','analyzed','error')),
+  analysis_consent_at timestamptz,
+  analysis_consent_version text,
+  deleted_at timestamptz,
   extracted_summary text
 );
+
+alter table public.user_documents add column if not exists analysis_status text not null default 'uploaded';
+alter table public.user_documents add column if not exists analysis_consent_at timestamptz;
+alter table public.user_documents add column if not exists analysis_consent_version text;
+alter table public.user_documents add column if not exists deleted_at timestamptz;
+alter table public.user_documents drop constraint if exists user_documents_analysis_status_check;
+alter table public.user_documents add constraint user_documents_analysis_status_check check (analysis_status in ('uploaded','awaiting_analysis','analyzed','error'));
 
 create index if not exists user_documents_user_id_idx on public.user_documents(user_id);
 
