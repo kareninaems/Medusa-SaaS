@@ -1,14 +1,23 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.3";
 
-import { SYSTEM_PROMPT } from "./system_prompt.ts";
+import {
+  buildOutputInstruction,
+  detectMode,
+  MAX_HISTORY,
+  MAX_MESSAGE_CHARS,
+  MEDUSA_MODEL_DEFAULT,
+  memoryToPrompt,
+  onboardingToPrompt,
+  SYSTEM_PROMPT,
+} from "./medusaPrompt.ts";
 
 type MedusaMode = "ACAO" | "FOCO" | "PROCESSO" | "TRAVA";
 
 interface ClaudeProxyPayload {
   messages: Array<{ role: "user" | "assistant"; content: string }>;
   energy: 1 | 2 | 3;
-  mode: MedusaMode;
+  mode?: MedusaMode;
   onboarding: {
     education_level?: string;
     profession?: string;
@@ -46,7 +55,7 @@ const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
 const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
 const anthropicModel =
-  Deno.env.get("ANTHROPIC_MODEL") ?? "claude-haiku-4-5-20251001";
+  Deno.env.get("ANTHROPIC_MODEL") ?? MEDUSA_MODEL_DEFAULT;
 const usePromptCaching =
   (Deno.env.get("ANTHROPIC_PROMPT_CACHING") ?? "false").toLowerCase() === "true";
 
@@ -54,54 +63,45 @@ const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-function buildContext(payload: ClaudeProxyPayload): string {
+function buildContext(
+  payload: ClaudeProxyPayload,
+  safeMessages: Array<{ role: "user" | "assistant"; content: string }>,
+): string {
   const onboarding = payload.onboarding;
-  const routine = onboarding?.routine;
-  const memory = payload.memory;
+  const sessionMode = payload.mode || detectMode(safeMessages.at(-1)?.content || "");
+  const now = new Date();
+  const currentUserMessage =
+    [...safeMessages]
+      .reverse()
+      .find((item) => item.role === "user")
+      ?.content || "";
+  const recentHistory = safeMessages
+    .map((item, index) => `${index + 1}. ${item.role.toUpperCase()}: ${item.content}`)
+    .join("\n");
 
-  const printJson = (value: unknown): string => {
-    if (!value) return "vazio";
-    if (Array.isArray(value)) return value.join(" | ") || "vazio";
-    if (typeof value === "string") return value;
-    try {
-      return JSON.stringify(value);
-    } catch {
-      return "vazio";
-    }
-  };
+  const onboardingProfile = onboardingToPrompt(onboarding);
+  const memoryProfile = memoryToPrompt(payload.memory);
+  const outputInstruction = buildOutputInstruction(payload.energy, undefined);
 
   return `
-## CONTEXTO DO USUÁRIO
-Energia atual: ${payload.energy}
-Modo atual: ${payload.mode}
+${onboardingProfile || "PERFIL DO USUARIO: nao informado."}
 
-Escolaridade: ${onboarding?.education_level || "não informado"}
-Profissão/Ocupação: ${onboarding?.profession || "não informado"}
-Restrições: ${onboarding?.constraints || "não informado"}
-O que trava: ${onboarding?.blockers || "não informado"}
-O que funciona sem energia: ${onboarding?.low_energy_works || "não informado"}
-Estilo de orientação preferido: ${onboarding?.guidance_style || "não informado"}
-Padrões já reconhecidos: ${onboarding?.known_patterns || "não informado"}
-Limites da resposta (nunca fazer): ${onboarding?.never_do || "não informado"}
+${memoryProfile || "MEMORIA PERSISTENTE DO USUARIO: nao informada."}
 
-Rotina:
-- Dias principais: ${(routine?.days || []).join(", ") || "não informado"}
-- Início típico: ${routine?.start_time || "não informado"}
-- Fim típico: ${routine?.end_time || "não informado"}
-- Horário variável: ${routine?.variable_schedule ? "sim" : "não"}
-- Blocos difíceis: ${routine?.notes || "não informado"}
+CONTEXTO DA SESSAO:
+- Data ISO: ${now.toISOString()}
+- Data local: ${now.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+- Energia atual: ${payload.energy}
+- Modo atual: ${sessionMode}
 
-Memória:
-- Patterns: ${printJson(memory?.patterns)}
-- Triggers: ${printJson(memory?.triggers)}
-- Worked: ${printJson(memory?.worked)}
-- Didnt_work: ${printJson(memory?.didnt_work)}
-- Context: ${printJson(memory?.context)}
+HISTORICO RECENTE:
+${recentHistory || "Sem historico."}
 
-## INSTRUÇÃO ADICIONAL
-Use escolaridade, profissão, rotina e restrições para ajustar densidade da linguagem,
-timing das sugestões e realismo dos passos.
-Nunca decida pela pessoa. Sugira; o usuário decide.
+MENSAGEM ATUAL DO USUARIO:
+${currentUserMessage || "Nao informada"}
+
+INSTRUCAO DE SAIDA:
+${outputInstruction || "Maximo 3 passos acionaveis. Sem diagnosticar, sem prescrever, sem decidir pelo usuario."}
 `.trim();
 }
 
@@ -177,9 +177,12 @@ serve(async (request) => {
     const payload = (await request.json()) as ClaudeProxyPayload;
     const safeMessages = (payload.messages || [])
       .filter((item) => ["user", "assistant"].includes(item.role))
-      .map((item) => ({ role: item.role, content: item.content?.trim() || "" }))
+      .map((item) => ({
+        role: item.role,
+        content: (item.content?.trim() || "").slice(0, MAX_MESSAGE_CHARS),
+      }))
       .filter((item) => !!item.content)
-      .slice(-16);
+      .slice(-MAX_HISTORY);
 
     if (!safeMessages.length) {
       return new Response(JSON.stringify({ error: "Nenhuma mensagem enviada" }), {
@@ -188,7 +191,7 @@ serve(async (request) => {
       });
     }
 
-    const systemPrompt = `${SYSTEM_PROMPT}\n\n${buildContext(payload)}`;
+    const systemPrompt = `${SYSTEM_PROMPT}\n\n${buildContext(payload, safeMessages)}`;
     const anthropicPayload: Record<string, unknown> = {
       model: anthropicModel,
       max_tokens: 700,
