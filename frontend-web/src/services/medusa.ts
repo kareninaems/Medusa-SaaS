@@ -24,6 +24,22 @@ export const DOCUMENT_SCHEMA_UPDATE_REQUIRED_MESSAGE =
 
 const PROFILE_COLUMNS = "*";
 
+function normalizeUserDocument(row: Partial<UserDocument> & Record<string, unknown>): UserDocument {
+  return {
+    id: String(row.id ?? ""),
+    user_id: String(row.user_id ?? ""),
+    file_path: String(row.file_path ?? ""),
+    file_name: (row.file_name as string | null) ?? null,
+    mime_type: (row.mime_type as string | null) ?? null,
+    uploaded_at: String(row.uploaded_at ?? new Date().toISOString()),
+    analysis_status: (row.analysis_status as UserDocument["analysis_status"] | undefined) ?? "uploaded",
+    analysis_consent_at: (row.analysis_consent_at as string | null | undefined) ?? null,
+    analysis_consent_version: (row.analysis_consent_version as string | null | undefined) ?? null,
+    deleted_at: (row.deleted_at as string | null | undefined) ?? null,
+    extracted_summary: (row.extracted_summary as string | null | undefined) ?? null,
+  };
+}
+
 function generateDocumentId(): string {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -172,85 +188,30 @@ export async function uploadUserDocument(userId: string, file: File): Promise<Us
       file_path: filePath,
       file_name: file.name,
       mime_type: file.type,
-      analysis_status: "uploaded",
-      analysis_consent_at: null,
-      analysis_consent_version: null,
-      deleted_at: null,
       extracted_summary: null,
     })
-    .select(
-      "id, user_id, file_path, file_name, mime_type, uploaded_at, analysis_status, analysis_consent_at, analysis_consent_version, deleted_at, extracted_summary",
-    )
+    .select("*")
     .single();
 
   if (error) {
-    const fallbackMessage = (error.message || "").toLowerCase();
-    const missingColumns = fallbackMessage.includes("column user_documents") || fallbackMessage.includes("does not exist");
-
-    if (!missingColumns) {
-      await supabase.storage.from("user-documents").remove([filePath]);
-      throw mapDocumentUploadError(error);
-    }
-
-    const { data: fallbackData, error: fallbackError } = await supabase
-      .from("user_documents")
-      .insert({
-        user_id: userId,
-        file_path: filePath,
-        file_name: file.name,
-        mime_type: file.type,
-        extracted_summary: null,
-      })
-      .select("id, user_id, file_path, file_name, mime_type, uploaded_at, extracted_summary")
-      .single();
-
-    if (fallbackError) {
-      await supabase.storage.from("user-documents").remove([filePath]);
-      throw mapDocumentUploadError(fallbackError);
-    }
-
-    return {
-      ...(fallbackData as Omit<UserDocument, "analysis_status" | "analysis_consent_at" | "analysis_consent_version" | "deleted_at">),
-      analysis_status: "uploaded",
-      analysis_consent_at: null,
-      analysis_consent_version: null,
-      deleted_at: null,
-    } as UserDocument;
+    await supabase.storage.from("user-documents").remove([filePath]);
+    throw mapDocumentUploadError(error);
   }
-  return data as UserDocument;
+  return normalizeUserDocument(data as Record<string, unknown>);
 }
 
 export async function listUserDocuments(userId: string): Promise<UserDocument[]> {
   const { data, error } = await supabase
     .from("user_documents")
-    .select(
-      "id, user_id, file_path, file_name, mime_type, uploaded_at, analysis_status, analysis_consent_at, analysis_consent_version, deleted_at, extracted_summary",
-    )
-    .eq("user_id", userId)
-    .is("deleted_at", null)
-    .order("uploaded_at", { ascending: false });
-
-  if (!error) return (data ?? []) as UserDocument[];
-
-  const message = (error.message || "").toLowerCase();
-  const missingColumns = message.includes("column user_documents") || message.includes("does not exist");
-  if (!missingColumns) throw error;
-
-  const { data: fallbackData, error: fallbackError } = await supabase
-    .from("user_documents")
-    .select("id, user_id, file_path, file_name, mime_type, uploaded_at, extracted_summary")
+    .select("*")
     .eq("user_id", userId)
     .order("uploaded_at", { ascending: false });
 
-  if (fallbackError) throw fallbackError;
+  if (error) throw error;
 
-  return (fallbackData ?? []).map((doc) => ({
-    ...(doc as Omit<UserDocument, "analysis_status" | "analysis_consent_at" | "analysis_consent_version" | "deleted_at">),
-    analysis_status: "uploaded",
-    analysis_consent_at: null,
-    analysis_consent_version: null,
-    deleted_at: null,
-  })) as UserDocument[];
+  return (data ?? [])
+    .map((doc) => normalizeUserDocument(doc as Record<string, unknown>))
+    .filter((doc) => !doc.deleted_at);
 }
 
 export async function grantDocumentAnalysisConsent(userId: string, documentId: string): Promise<UserDocument> {
@@ -293,7 +254,7 @@ export async function grantDocumentAnalysisConsent(userId: string, documentId: s
     }
     throw error;
   }
-  return data as UserDocument;
+  return normalizeUserDocument(data as Record<string, unknown>);
 }
 
 export async function deleteUserDocument(userId: string, document: Pick<UserDocument, "id" | "file_path">): Promise<void> {
