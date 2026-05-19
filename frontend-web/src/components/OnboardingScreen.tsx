@@ -184,8 +184,9 @@ export function OnboardingScreen({
       await onUploadDocument(selectedFile);
       setSelectedFile(null);
       setUploadStatus("PDF enviado com sucesso. Extração permanece pendente no MVP.");
-    } catch {
-      setUploadStatus("Não foi possível enviar o PDF agora.");
+    } catch (uploadError) {
+      const uploadMessage = uploadError instanceof Error ? uploadError.message : "Não foi possível enviar o PDF agora.";
+      setUploadStatus(uploadMessage);
     }
   };
 

@@ -47,8 +47,16 @@ Isso cria as tabelas:
 - `messages`
 - `memories`
 - `audit_logs`
+- `user_documents`
 
 E ativa RLS para isolamento por usuário.
+
+### Storage (PDF opcional)
+
+Para habilitar upload opcional de PDF com bucket privado `user-documents`:
+
+- Execute: `/app/frontend-web/supabase/storage_user_documents_setup.sql`
+- Ou siga: `/app/frontend-web/supabase/STORAGE_SETUP.md`
 
 ## 4) Deploy da Edge Function Claude
 

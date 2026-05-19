@@ -16,8 +16,42 @@ import type {
 
 const functionName = import.meta.env.VITE_SUPABASE_FUNCTION_NAME || "claude-proxy";
 export const AGE_CONFIRM_VERSION = "2026-05";
+export const DOCUMENT_STORAGE_NOT_READY_MESSAGE =
+  "Armazenamento de documentos ainda não configurado. Você pode continuar sem PDF.";
 
 const PROFILE_COLUMNS = "*";
+
+function generateDocumentId(): string {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+
+  const fallback = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx";
+  return fallback.replace(/[xy]/g, (char) => {
+    const random = Math.floor(Math.random() * 16);
+    const value = char === "x" ? random : (random & 0x3) | 0x8;
+    return value.toString(16);
+  });
+}
+
+function mapDocumentUploadError(error: unknown): Error {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  const normalized = message.toLowerCase();
+
+  const storageNotConfigured =
+    normalized.includes("bucket not found") ||
+    normalized.includes("storage") ||
+    normalized.includes("relation \"user_documents\" does not exist") ||
+    normalized.includes("could not find the table") ||
+    normalized.includes("permission denied") ||
+    normalized.includes("policy");
+
+  if (storageNotConfigured) {
+    return new Error(DOCUMENT_STORAGE_NOT_READY_MESSAGE);
+  }
+
+  return new Error(message || DOCUMENT_STORAGE_NOT_READY_MESSAGE);
+}
 
 export async function ensureProfile(session: Session): Promise<Profile> {
   const { data: existing, error: fetchError } = await supabase
@@ -114,11 +148,8 @@ export async function uploadUserDocument(userId: string, file: File): Promise<Us
     throw new Error("Envie apenas arquivo PDF.");
   }
 
-  const extension = file.name.toLowerCase().endsWith(".pdf") ? "pdf" : "pdf";
-  const generatedId = typeof crypto !== "undefined" && crypto.randomUUID
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  const filePath = `${userId}/${generatedId}.${extension}`;
+  const generatedId = generateDocumentId();
+  const filePath = `${userId}/${generatedId}.pdf`;
 
   const { error: uploadError } = await supabase.storage
     .from("user-documents")
@@ -127,7 +158,7 @@ export async function uploadUserDocument(userId: string, file: File): Promise<Us
       upsert: false,
     });
 
-  if (uploadError) throw uploadError;
+  if (uploadError) throw mapDocumentUploadError(uploadError);
 
   const { data, error } = await supabase
     .from("user_documents")
@@ -143,7 +174,7 @@ export async function uploadUserDocument(userId: string, file: File): Promise<Us
 
   if (error) {
     await supabase.storage.from("user-documents").remove([filePath]);
-    throw error;
+    throw mapDocumentUploadError(error);
   }
   return data as UserDocument;
 }
