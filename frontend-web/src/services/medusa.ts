@@ -74,25 +74,22 @@ export async function updateEnergy(userId: string, energy: EnergyLevel): Promise
   if (error) throw error;
 }
 
-export async function confirmAge(userId: string): Promise<Profile> {
+export async function confirmAge(userId: string, supportsAgeColumns: boolean): Promise<Profile> {
   const confirmedAt = new Date().toISOString();
-  const { data, error } = await supabase
-    .from("profiles")
-    .update({
-      age_confirmed_at: confirmedAt,
-      age_confirmed_version: AGE_CONFIRM_VERSION,
-    })
-    .eq("id", userId)
-    .select(PROFILE_COLUMNS)
-    .single();
+  if (supportsAgeColumns) {
+    const { data, error } = await supabase
+      .from("profiles")
+      .update({
+        age_confirmed_at: confirmedAt,
+        age_confirmed_version: AGE_CONFIRM_VERSION,
+      })
+      .eq("id", userId)
+      .select(PROFILE_COLUMNS)
+      .single();
 
-  if (!error) return data as Profile;
-
-  const message = (error.message || "").toLowerCase();
-  const missingColumn =
-    message.includes("age_confirmed_at") || message.includes("age_confirmed_version") || message.includes("column");
-
-  if (!missingColumn) throw error;
+    if (error) throw error;
+    return data as Profile;
+  }
 
   const { data: current } = await supabase.from("profiles").select("onboarding").eq("id", userId).maybeSingle();
   const fallbackOnboarding = {

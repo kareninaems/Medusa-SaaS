@@ -23,9 +23,9 @@ export function SettingsScreen({
   };
 
   return (
-    <section className="panel">
+    <section className="panel" data-testid="settings-screen">
       <h2>Setup</h2>
-      <p className="muted">Conta: {session.user.email}</p>
+      <p className="muted" data-testid="settings-account-email">Conta: {session.user.email}</p>
       <p className="muted">Próximo passo: escolha uma ação abaixo.</p>
 
       <div className="setup-list">
@@ -37,7 +37,7 @@ export function SettingsScreen({
         <div className="setup-item">
           <strong>Resetar dados</strong>
           <span>Apaga histórico, memória e onboarding.</span>
-          <button className="ghost-btn" onClick={confirmReset} disabled={resetting}>
+          <button data-testid="settings-reset-button" className="ghost-btn" onClick={confirmReset} disabled={resetting}>
             {resetting ? "Resetando" : "Resetar dados"}
           </button>
         </div>
@@ -45,7 +45,7 @@ export function SettingsScreen({
         <div className="setup-item">
           <strong>Sair</strong>
           <span>Encerra a sessão atual.</span>
-          <button className="primary-btn" onClick={onSignOut}>
+          <button data-testid="settings-signout-button" className="primary-btn" onClick={onSignOut}>
             Sair da conta
           </button>
         </div>
@@ -53,15 +53,15 @@ export function SettingsScreen({
         <div className="setup-item">
           <strong>Voz</strong>
           <span>Recurso futuro. Ainda não disponível neste MVP.</span>
-          <button className="ghost-btn" disabled>
+          <button data-testid="settings-voice-placeholder-button" className="ghost-btn" disabled>
             Voz em breve
           </button>
         </div>
 
         <div className="legal-links-row">
-          <Link to="/terms">Termos</Link>
-          <Link to="/privacy">Privacidade</Link>
-          <Link to="/crisis">Crise</Link>
+          <Link to="/terms" data-testid="settings-terms-link">Termos</Link>
+          <Link to="/privacy" data-testid="settings-privacy-link">Privacidade</Link>
+          <Link to="/crisis" data-testid="settings-crisis-link">Crise</Link>
         </div>
       </div>
     </section>

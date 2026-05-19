@@ -244,6 +244,7 @@ export function OnboardingScreen({
           <label className="field">
             <span>Nome de exibição</span>
             <input
+              data-testid="onboarding-display-name-input"
               className="input"
               value={displayName}
               onChange={(event) => setDisplayName(event.target.value)}
@@ -252,7 +253,12 @@ export function OnboardingScreen({
           </label>
           <label className="field">
             <span>Escolaridade</span>
-            <select className="input" value={educationLevel} onChange={(event) => setEducationLevel(event.target.value)}>
+            <select
+              data-testid="onboarding-education-select"
+              className="input"
+              value={educationLevel}
+              onChange={(event) => setEducationLevel(event.target.value)}
+            >
               {EDUCATION_OPTIONS.map((option) => (
                 <option key={option} value={option}>
                   {option}
@@ -264,6 +270,7 @@ export function OnboardingScreen({
             <label className="field">
               <span>Outro (escolaridade)</span>
               <input
+                data-testid="onboarding-education-other-input"
                 className="input"
                 value={educationOther}
                 onChange={(event) => setEducationOther(event.target.value)}
@@ -274,6 +281,7 @@ export function OnboardingScreen({
           <label className="field">
             <span>Profissão/ocupação</span>
             <select
+              data-testid="onboarding-profession-select"
               className="input"
               value={professionCategory}
               onChange={(event) => setProfessionCategory(event.target.value)}
@@ -289,6 +297,7 @@ export function OnboardingScreen({
             <label className="field">
               <span>Outro (profissão/ocupação)</span>
               <input
+                data-testid="onboarding-profession-other-input"
                 className="input"
                 value={professionOther}
                 onChange={(event) => setProfessionOther(event.target.value)}
@@ -310,6 +319,7 @@ export function OnboardingScreen({
               <button
                 type="button"
                 key={day}
+                data-testid={`onboarding-day-chip-${day.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
                 className={`chip ${days.includes(day) ? "chip-active" : ""}`}
                 onClick={() => setDays((current) => toggleValue(current, day))}
               >
@@ -322,6 +332,7 @@ export function OnboardingScreen({
               <button
                 type="button"
                 key={period}
+                data-testid={`onboarding-period-chip-${period.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
                 className={`chip ${periods.includes(period) ? "chip-active" : ""}`}
                 onClick={() => setPeriods((current) => toggleValue(current, period))}
               >
@@ -332,6 +343,7 @@ export function OnboardingScreen({
           <label className="field">
             <span>Alguma observação da rotina? (opcional)</span>
             <input
+              data-testid="onboarding-routine-notes-input"
               className="input"
               value={routineNotes}
               onChange={(event) => setRoutineNotes(event.target.value)}
@@ -351,6 +363,7 @@ export function OnboardingScreen({
               <button
                 type="button"
                 key={option}
+                data-testid={`onboarding-constraint-chip-${option.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
                 className={`chip ${constraints.includes(option) ? "chip-active" : ""}`}
                 onClick={() => setConstraints((current) => toggleValue(current, option))}
               >
@@ -362,6 +375,7 @@ export function OnboardingScreen({
             <label className="field">
               <span>Outro (restrições)</span>
               <input
+                data-testid="onboarding-constraints-other-input"
                 className="input"
                 value={constraintsOther}
                 onChange={(event) => setConstraintsOther(event.target.value)}
@@ -382,6 +396,7 @@ export function OnboardingScreen({
               <button
                 type="button"
                 key={option}
+                data-testid={`onboarding-blocker-chip-${option.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
                 className={`chip ${blockers.includes(option) ? "chip-active" : ""}`}
                 onClick={() => setBlockers((current) => toggleValue(current, option))}
               >
@@ -393,6 +408,7 @@ export function OnboardingScreen({
             <label className="field">
               <span>Outro (travas)</span>
               <input
+                data-testid="onboarding-blockers-other-input"
                 className="input"
                 value={blockersOther}
                 onChange={(event) => setBlockersOther(event.target.value)}
@@ -413,6 +429,7 @@ export function OnboardingScreen({
               <button
                 type="button"
                 key={option}
+                data-testid={`onboarding-low-energy-chip-${option.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
                 className={`chip ${lowEnergyWorks.includes(option) ? "chip-active" : ""}`}
                 onClick={() => setLowEnergyWorks((current) => toggleValue(current, option))}
               >
@@ -424,6 +441,7 @@ export function OnboardingScreen({
             <label className="field">
               <span>Outro (energia baixa)</span>
               <input
+                data-testid="onboarding-low-energy-other-input"
                 className="input"
                 value={lowEnergyOther}
                 onChange={(event) => setLowEnergyOther(event.target.value)}
@@ -444,6 +462,7 @@ export function OnboardingScreen({
               <button
                 type="button"
                 key={option}
+                data-testid={`onboarding-guidance-chip-${option.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
                 className={`chip ${guidanceStyle === option ? "chip-active" : ""}`}
                 onClick={() => setGuidanceStyle(option)}
               >
@@ -463,6 +482,7 @@ export function OnboardingScreen({
             <button
               type="button"
               key={option}
+                data-testid={`onboarding-limit-chip-${option.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
               className={`chip ${neverDo.includes(option) ? "chip-active" : ""}`}
               onClick={() => setNeverDo((current) => toggleValue(current, option))}
             >
@@ -474,6 +494,7 @@ export function OnboardingScreen({
           <label className="field">
             <span>Outro (limites)</span>
             <input
+              data-testid="onboarding-limits-other-input"
               className="input"
               value={neverDoOther}
               onChange={(event) => setNeverDoOther(event.target.value)}
@@ -488,22 +509,29 @@ export function OnboardingScreen({
             documentos de terceiros.
           </p>
           <input
+            data-testid="onboarding-pdf-input"
             className="input"
             type="file"
             accept="application/pdf"
             onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
           />
-          <button type="button" className="ghost-btn" onClick={uploadSelectedDocument} disabled={uploadingDocument}>
+          <button
+            data-testid="onboarding-upload-pdf-button"
+            type="button"
+            className="ghost-btn"
+            onClick={uploadSelectedDocument}
+            disabled={uploadingDocument}
+          >
             {uploadingDocument ? "Enviando PDF..." : "Enviar PDF"}
           </button>
-          {uploadStatus ? <p className="status-ok">{uploadStatus}</p> : null}
+          {uploadStatus ? <p className="status-ok" data-testid="onboarding-upload-status">{uploadStatus}</p> : null}
         </div>
       </>
     );
   };
 
   return (
-    <div className="screen onboarding-screen">
+    <div className="screen onboarding-screen" data-testid="onboarding-screen">
       <div className="screen-header">
         <p className="eyebrow">Onboarding</p>
         <p className="muted">
@@ -511,19 +539,19 @@ export function OnboardingScreen({
         </p>
       </div>
 
-      <div className="stack onboarding-wizard">
+      <div className="stack onboarding-wizard" data-testid="onboarding-wizard">
         {renderStep()}
-        {error ? <p className="status-error">{error}</p> : null}
+        {error ? <p className="status-error" data-testid="onboarding-error-message">{error}</p> : null}
         <div className="wizard-actions">
-          <button className="ghost-btn" onClick={prevStep} disabled={step === 0 || loading}>
+          <button data-testid="onboarding-back-button" className="ghost-btn" onClick={prevStep} disabled={step === 0 || loading}>
             Voltar
           </button>
           {step < TOTAL_STEPS - 1 ? (
-            <button className="primary-btn" onClick={nextStep} disabled={loading}>
+            <button data-testid="onboarding-continue-button" className="primary-btn" onClick={nextStep} disabled={loading}>
               Continuar
             </button>
           ) : (
-            <button className="primary-btn" onClick={saveOnboarding} disabled={loading}>
+            <button data-testid="onboarding-save-button" className="primary-btn" onClick={saveOnboarding} disabled={loading}>
               {loading ? "Salvando" : "Salvar onboarding"}
             </button>
           )}

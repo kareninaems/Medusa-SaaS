@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 function LegalLayout({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <main className="app-shell legal-shell">
+    <main className="app-shell legal-shell" data-testid="legal-page-shell">
       <header className="panel">
         <p className="eyebrow">Medusa • Documentos legais</p>
         <h1>{title}</h1>
@@ -11,16 +11,16 @@ function LegalLayout({ title, children }: { title: string; children: ReactNode }
           Este documento é um modelo inicial e deve ser revisado por profissional jurídico antes do lançamento público.
         </p>
         <div className="legal-links-row">
-          <Link to="/">
+          <Link to="/" data-testid="legal-back-to-product-link">
             Voltar ao produto
           </Link>
-          <Link to="/terms">
+          <Link to="/terms" data-testid="legal-terms-link">
             Termos
           </Link>
-          <Link to="/privacy">
+          <Link to="/privacy" data-testid="legal-privacy-link">
             Privacidade
           </Link>
-          <Link to="/crisis">
+          <Link to="/crisis" data-testid="legal-crisis-link">
             Crise
           </Link>
         </div>

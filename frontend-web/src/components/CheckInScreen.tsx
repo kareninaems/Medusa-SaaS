@@ -12,7 +12,7 @@ export function CheckInScreen({ loading = false, defaultEnergy, onConfirm }: Che
   const [energy, setEnergy] = useState<EnergyLevel>(defaultEnergy ?? 2);
 
   return (
-    <div className="screen compact checkin-screen">
+    <div className="screen compact checkin-screen" data-testid="checkin-screen">
       <p className="eyebrow">Check-in</p>
       <h2>Energia agora?</h2>
       <p className="muted">Escolha um nível para iniciar o chat.</p>
@@ -20,6 +20,7 @@ export function CheckInScreen({ loading = false, defaultEnergy, onConfirm }: Che
       <div className="energy-grid">
         {[1, 2, 3].map((option) => (
           <button
+            data-testid={`checkin-energy-option-${option}`}
             key={option}
             className={`energy-btn ${energy === option ? "energy-active" : ""}`}
             onClick={() => setEnergy(option as EnergyLevel)}
@@ -30,7 +31,7 @@ export function CheckInScreen({ loading = false, defaultEnergy, onConfirm }: Che
         ))}
       </div>
 
-      <button className="primary-btn" onClick={() => onConfirm(energy)} disabled={loading}>
+      <button data-testid="checkin-confirm-button" className="primary-btn" onClick={() => onConfirm(energy)} disabled={loading}>
         {loading ? "Aguarde..." : "Entrar no chat"}
       </button>
     </div>

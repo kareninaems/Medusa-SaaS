@@ -1,167 +1,71 @@
-# PRD — Medusa SaaS B2C iOS-first
+# PRD — Medusa Web SaaS (frontend-web ativo)
 
 ## Problem Statement
-Transformar o Medusa em SaaS B2C individual com autenticação real, onboarding cognitivo por usuário, memória individual persistente, chat com IA, freemium + assinatura, e painel admin operacional.
+Construir a versão Web SaaS da Medusa em `/app/frontend-web` (React + Vite + Supabase), mantendo `/app/frontend` intacto como backup. O produto deve oferecer onboarding cognitivo guiado, check-in de energia, chat persistente, consentimento legal e UX acessível para usuários neurodivergentes.
 
-## User Choices Confirmadas
-- Times/membros no MVP: **apenas usuário individual**
-- Gatilho principal de upgrade: **voz**
-- Paywall: **leve no onboarding + forte no momento de limite/voz**
-- IA: **camada multi-modelo desde o início**
-- Chave IA: **EMERGENT_LLM_KEY (universal key)**
-
-## Arquitetura
-- **Frontend (Expo + TypeScript):** fluxo auth → onboarding → app principal com abas (Chat, Memória, Conta, Admin para usuários admin).
-- **Backend (FastAPI):** auth/sessão JWT, onboarding, chat multi-modelo, memória, subscription Stripe, painel admin, exportação e exclusão de conta.
-- **Database (MongoDB):** coleções `users`, `subscriptions`, `onboarding_profiles`, `conversations`, `memory_items`, `usage_events`, `admin_logs`, `password_resets`.
-
-## Personas
-1. **Usuário individual B2C:** quer suporte cognitivo e organização pessoal.
-2. **Usuário freemium:** testa valor, encontra limite e converte via voz/premium.
-3. **Operação/admin:** acompanha métricas, plano dos usuários e ações de suporte.
-
-## Core Requirements (estáticos)
-- Login/cadastro/recuperação de senha
-- Sessão persistente por usuário
-- Onboarding cognitivo individual
-- Chat principal com contexto pessoal
-- Memória separada por usuário
-- Freemium + plano pago com gating
-- Assinatura recorrente via Stripe
-- Painel admin com visão operacional
+## Arquitetura Atual
+- **Frontend ativo:** React + Vite + TypeScript (`/app/frontend-web`)
+- **Auth/DB/Storage/Serverless:** Supabase Auth + Postgres + Storage + Edge Function
+- **Edge Function:** `claude-proxy` (sem alteração de prompt/chat nesta tarefa)
+- **Tema UI:** warm paper (`#F4F1EA`) + calm green (`#4F8A72`), baixo estímulo, contraste AA
 
 ## Implementado
 
-### 2026-05-19 — Foundation SaaS + UX premium iOS-first
-- Backend refeito com FastAPI para:
-  - Auth completo (`/api/auth/register`, `/api/auth/login`, `/api/auth/me`, reset de senha)
-  - Onboarding cognitivo por usuário (`/api/onboarding/questions`, `/api/onboarding/profile`)
-  - Chat multi-modelo (`openai`, `anthropic`, `gemini`) com contexto + memória
-  - Gating freemium (limite diário) e gatilho premium de voz
-  - Memória individual (`/api/memory`)
-  - Subscription APIs Stripe (`/api/subscription/me`, `/checkout`, `/portal`, `/webhook`)
-  - Admin APIs (`/api/admin/overview`, `/api/admin/users`, `/api/admin/events`, ajuste manual de plano)
-  - Privacidade LGPD base (`/api/account/export`, `/api/account/delete`)
-- Frontend Expo iOS-first com interface calma/premium:
-  - Tela de auth (login/cadastro/recuperação)
-  - Onboarding progressivo
-  - Chat principal com seletor multi-modelo e botão de voz
-  - Paywall modal (onboarding + momento de uso)
-  - Aba Memória (listar + criar memória manual)
-  - Aba Conta (upgrade, cobrança, exportar dados, excluir conta, logout)
-  - Aba Admin (métricas e suporte de plano)
-- Sessão persistente implementada com `@/src/utils/storage` (SecureStore/AsyncStorage wrapper existente).
-- Permissões mobile adicionadas no `app.json` para voz premium (`RECORD_AUDIO`, `NSMicrophoneUsageDescription`).
+### Base já existente (antes desta iteração)
+- Fluxo completo: Auth → Consentimento legal → Onboarding → Check-in → Chat.
+- Persistência por usuário com RLS (`profiles`, `conversations`, `messages`, `memories`, `audit_logs`, `user_consents`).
+- Páginas legais (`/terms`, `/privacy`, `/crisis`).
 
-### 2026-05-19 — Medusa SaaS Web (incremental, sem destruir base atual)
-- Criado novo projeto web isolado em `/app/frontend-web` preservando `/app/frontend` intacto.
-- Implementado MVP web com fluxo de produto (sem landing de marketing):
-  - Login/cadastro Supabase Auth (email + senha)
-  - Onboarding com campos:
-    - `education_level`
-    - `profession`
-    - `routine` (`days`, `start_time`, `end_time`, `variable_schedule`, `notes`)
-    - `constraints`
-  - Check-in de energia 1/2/3 antes do chat
-  - Chat Medusa com modos `ACAO`, `FOCO`, `PROCESSO`, `TRAVA`
-  - Placeholder de voz no composer (sem implementação de voz ainda)
-  - Tela de memória (`patterns`, `triggers`, `worked`, `didnt_work`, `context`)
-  - Setup/configurações (status de conta, reset de dados, logout)
-- Implementado persistência por usuário no Supabase:
-  - `profiles`, `conversations`, `messages`, `memories`, `audit_logs`
-- Criado schema SQL + RLS em `/app/frontend-web/supabase/schema.sql` para isolamento multiusuário.
-- Criada Edge Function server-side `claude-proxy` em `/app/frontend-web/supabase/functions/claude-proxy/`:
-  - usa `ANTHROPIC_API_KEY` apenas em secret/env server-side
-  - `ANTHROPIC_MODEL` configurável por env (default Haiku 4.5)
-  - suporta prompt caching quando habilitado por env
-  - registra `audit_logs` com status e tokens sem armazenar conteúdo sensível
-- Criado system prompt separado em `/app/frontend-web/supabase/functions/claude-proxy/system_prompt.ts` com seções de identidade da Medusa.
-- README de execução local e setup completo em `/app/frontend-web/README.md`.
+### Iteração atual — Onboarding guiado + 18+ + upload opcional de PDF
+- **Segurança 18+:**
+  - Checkbox obrigatório no cadastro: “Declaro que tenho 18 anos ou mais.”
+  - Gate de idade antes do onboarding (`AgeGate`) para bloquear continuidade sem confirmação.
+  - Persistência alvo em `profiles.age_confirmed_at` e `profiles.age_confirmed_version = "2026-05"`.
+  - Compatibilidade temporária: se colunas ainda não existirem no ambiente, usa fallback em `onboarding.age_confirmed` sem quebrar fluxo.
 
-### 2026-05-19 — Atualização LGPD/Termos + onboarding ampliado
-- Onboarding ampliado com novos campos salvos em `profiles.onboarding`:
-  - `education_level`, `profession`, `routine`, `constraints`
-  - `blockers`, `low_energy_works`, `guidance_style`, `known_patterns`, `never_do`
-- Prompt/contexto da Edge Function atualizado para considerar os campos acima e reforçar: Medusa sugere, usuário decide.
-- Schema atualizado com colunas de consentimento em `profiles`:
-  - `terms_accepted_at`, `privacy_accepted_at`, `terms_version`, `privacy_version`
-- Nova tabela `user_consents` com RLS para histórico de aceite.
-- Cadastro agora exige checkbox obrigatório de aceite legal e grava consentimento em `profiles` + `user_consents`.
-- Páginas legais implementadas:
-  - `/terms` (epígrafe IBM + limites de responsabilidade)
-  - `/privacy` (LGPD + ANPD + tratamento de dados)
-  - `/crisis` (CVV 188, SAMU 192, Polícia 190)
-- Validação local realizada em `http://localhost:3000` com screenshots de login e páginas legais.
+- **Onboarding convertido para fluxo guiado (baixa carga cognitiva):**
+  - Passos com **chips/selects/opções** e “Outro” condicional.
+  - Etapas: identidade/contexto, rotina, restrições, travas, energia baixa, estilo de orientação, limites da Medusa.
+  - Sem obrigar texto longo.
 
-### 2026-05-19 — Redesign acessível neurodivergente (frontend-web)
-- Redesenhado o `/app/frontend-web` com foco em previsibilidade, calma visual e linguagem direta.
-- Mantida identidade Medusa (sem visual genérico de chatbot/SaaS comum) e sem landing de marketing.
-- UI simplificada com paleta escura suave e baixo estímulo:
-  - `#121417` fundo principal
-  - `#1B1F24` superfície
-  - `#242A31` superfície elevada
-  - `#606A75` bordas (ajuste mínimo para AA)
-  - acento `#8FBDA8`
-- Ajustes de acessibilidade:
-  - texto base 16px, line-height 1.6
-  - foco visível (`#D9B56D`)
-  - sem animações, sem gradientes/neon/blur/glassmorphism
-  - botões com rótulos explícitos e estados claros (salvando/enviando/erro/salvo)
-- Navegação mínima confirmada:
-  - header com **Chat + Setup**
-  - memória movida para dentro de Setup (não é aba principal)
-  - seletor de modo oculto no chat (usa padrão interno)
-- Onboarding convertido para wizard de 6 etapas (`x de 6`), uma pergunta principal por bloco.
-- Check-in simplificado para 3 botões grandes: `1 Baixa`, `2 Média`, `3 Alta`.
-- Chat com largura máxima ~760px, bolhas simples, composer confortável e placeholder discreto de voz.
-- Páginas legais (`/terms`, `/privacy`, `/crisis`) restilizadas sem alterar conteúdo jurídico.
-- Responsividade validada em mobile `390x844` sem overflow horizontal.
+- **Upload de PDF/laudo opcional no onboarding (etapa final):**
+  - Input de arquivo PDF + botão de upload explícito.
+  - Sem envio automático para Claude.
+  - Mensagem de uso seguro (evitar documentos de terceiros).
 
-### 2026-05-19 — Ajuste final de direção visual (tema claro suave)
-- Aplicado redesign visual para **papel quente + verde calmo** sem alterar backend/Supabase/RLS/Edge/prompt/lógica.
-- Nova paleta clara aplicada no frontend-web:
-  - fundo `#F4F1EA`
-  - superfícies `#FFFFFF`, `#EEE9DF`, `#FAF8F3`
-  - texto `#1F2428` + tons secundários acessíveis
-  - acento verde calmo (`#4F8A72` com variação AA para botão primário)
-- Chat mantido funcional com Claude real; botão de voz segue placeholder discreto.
-- Fluxos mantidos: login/cadastro, consentimento, onboarding wizard, check-in, chat, setup, termos/privacidade/crise.
-- Contraste validado (WCAG AA) para texto principal/secundário/botões/estados.
+- **Schema SQL atualizado (`/app/frontend-web/supabase/schema.sql`):**
+  - `profiles`: `age_confirmed_at`, `age_confirmed_version`
+  - Nova tabela `user_documents` + índice
+  - RLS `user_documents` por `user_id = auth.uid()`
+  - Políticas de Storage para bucket privado `user-documents` (path por usuário)
 
-### 2026-05-19 — Ajustes finos de chat mobile (sem alterar lógica)
-- Renderização de markdown no chat ajustada para não exibir `**` cru ao usuário (negrito renderizado).
-- Removidas bordas extras na lista de mensagens para reduzir efeito de “cards dentro de cards”.
-- Melhorada largura útil no mobile (padding reduzido e bolhas mais amplas).
-- Header/nav compactados e discretos.
-- Composer mantido fixo/visível no final; botão de voz removido do composer e movido para Setup como placeholder.
-- Preservação de quebras de linha/listas com espaçamento confortável no conteúdo das respostas.
+- **Termos atualizados:**
+  - Seção explícita de faixa etária 18+ no `/terms`.
 
-## Status Atual por Fase
-- **Fase 1 (Foundation SaaS):** concluída
-- **Fase 2 (Onboarding + memória individual):** concluída no MVP
-- **Fase 3 (Billing e planos):** parcialmente concluída (APIs prontas; depende de chaves Stripe)
-- **Fase 4 (Admin panel):** concluída em versão MVP mobile/admin interno
-- **Fase 5 (Hardening):** parcialmente iniciada (logs, export/delete, falta observabilidade avançada)
+- **Hardening de testabilidade/acessibilidade:**
+  - `data-testid` adicionado nos controles críticos (auth, age gate, consent, onboarding, check-in, settings/legal).
+  - Botões ajustados para touch target mínimo de 44px.
+
+## Testes realizados
+- Bloqueio sem checkbox 18+ validado.
+- Fluxo 18+ → onboarding guiado → check-in validado (desktop/mobile).
+- Persistência de onboarding validada (relogin cai no check-in, sem retornar para onboarding).
+- Upload PDF testado em UI.
+- **Status upload no ambiente atual:** `Bucket not found` quando bucket/migration não aplicados no Supabase alvo.
 
 ## Backlog Priorizado
 
-### P0 (próximo passo imediato)
-1. Executar `/app/frontend-web/supabase/schema.sql` no projeto Supabase e validar RLS em produção.
-2. Publicar `claude-proxy` e configurar secrets (`ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `ANTHROPIC_PROMPT_CACHING`).
-3. Validar fluxo real fim-a-fim (cadastro → onboarding → check-in → chat → memória) com dados reais.
+### P0
+1. Executar `frontend-web/supabase/schema.sql` no Supabase de produção/dev ativo.
+2. Confirmar bucket privado `user-documents` criado e políticas de Storage/RLS ativas.
+3. Revalidar upload PDF com sucesso ponta a ponta após migration.
 
 ### P1
-1. Implementar voz real no chat (captura + STT/TTS) mantendo identidade da Medusa.
-2. Implementar consolidação automática de memória com função dedicada.
-3. Integrar calendário para sincronização de energia, rotina e agenda.
+1. Exibir lista de documentos enviados (metadata `user_documents`) na UI.
+2. Fluxo explícito de consentimento por documento antes de qualquer análise por IA.
+3. Limpeza de documentos no reset (metadata + arquivo no bucket).
 
 ### P2
-1. Política de retenção avançada + anonimização.
-2. Auditoria detalhada por ação crítica.
-3. Preparar estrutura para futura expansão family plan/B2B.
-
-## Next Tasks List
-1. Rodar SQL de schema e políticas no Supabase alvo.
-2. Deploy da Edge Function `claude-proxy` com secrets.
-3. Testar onboarding novo (escolaridade/profissão/rotina/restrições) impactando respostas do Claude.
-4. Evoluir para memória automática e integração de calendário.
+1. Extração de resumo de PDF (`extracted_summary`) com consentimento explícito.
+2. Daily Summary / extração automática de evidências do chat.
+3. Voz (placeholder atual) com UX acessível e sem sobrecarga sensorial.

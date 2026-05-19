@@ -72,15 +72,16 @@ export function AuthScreen({ onAuthDone }: AuthScreenProps) {
   };
 
   return (
-    <div className="auth-shell">
-      <div className="auth-card">
+    <div className="auth-shell" data-testid="auth-screen">
+      <div className="auth-card" data-testid="auth-card">
         <p className="eyebrow">Medusa</p>
         <h1>{mode === "login" ? "Entrar" : "Criar conta"}</h1>
         <p className="auth-sub">Ferramenta de uso diário. Sem distrações.</p>
 
-        <form className="stack" onSubmit={handleSubmit}>
+        <form className="stack" onSubmit={handleSubmit} data-testid="auth-form">
           <div className="toggle-row">
             <button
+              data-testid="auth-mode-login-button"
               type="button"
               className={`toggle-btn ${mode === "login" ? "active" : ""}`}
               onClick={() => setMode("login")}
@@ -88,6 +89,7 @@ export function AuthScreen({ onAuthDone }: AuthScreenProps) {
               Login
             </button>
             <button
+              data-testid="auth-mode-register-button"
               type="button"
               className={`toggle-btn ${mode === "register" ? "active" : ""}`}
               onClick={() => setMode("register")}
@@ -97,6 +99,7 @@ export function AuthScreen({ onAuthDone }: AuthScreenProps) {
           </div>
 
           <input
+            data-testid="auth-email-input"
             className="input"
             type="email"
             placeholder="seu@email.com"
@@ -105,6 +108,7 @@ export function AuthScreen({ onAuthDone }: AuthScreenProps) {
             required
           />
           <input
+            data-testid="auth-password-input"
             className="input"
             type="password"
             placeholder="Senha"
@@ -118,6 +122,7 @@ export function AuthScreen({ onAuthDone }: AuthScreenProps) {
             <>
               <label className="check-row">
                 <input
+                  data-testid="auth-age-confirm-checkbox"
                   type="checkbox"
                   checked={acceptedAge}
                   onChange={(event) => setAcceptedAge(event.target.checked)}
@@ -127,6 +132,7 @@ export function AuthScreen({ onAuthDone }: AuthScreenProps) {
               </label>
               <label className="check-row">
                 <input
+                  data-testid="auth-legal-checkbox"
                   type="checkbox"
                   checked={acceptedLegal}
                   onChange={(event) => setAcceptedLegal(event.target.checked)}
@@ -140,18 +146,18 @@ export function AuthScreen({ onAuthDone }: AuthScreenProps) {
             </>
           ) : null}
 
-          <button className="primary-btn" type="submit" disabled={loading}>
+          <button data-testid="auth-submit-button" className="primary-btn" type="submit" disabled={loading}>
             {loading ? "Aguarde..." : mode === "login" ? "Entrar na Medusa" : "Criar conta"}
           </button>
 
-          {info ? <p className="status-ok">{info}</p> : null}
-          {error ? <p className="status-error">{error}</p> : null}
+          {info ? <p className="status-ok" data-testid="auth-info-message">{info}</p> : null}
+          {error ? <p className="status-error" data-testid="auth-error-message">{error}</p> : null}
         </form>
 
-        <footer className="auth-footer">
-          <a href="/terms">Termos</a>
-          <a href="/privacy">Privacidade</a>
-          <a href="/crisis">Crise</a>
+        <footer className="auth-footer" data-testid="auth-footer-links">
+          <a href="/terms" data-testid="auth-terms-link">Termos</a>
+          <a href="/privacy" data-testid="auth-privacy-link">Privacidade</a>
+          <a href="/crisis" data-testid="auth-crisis-link">Crise</a>
         </footer>
       </div>
     </div>

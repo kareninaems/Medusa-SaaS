@@ -47,7 +47,7 @@ function ConsentGate({
   const [checked, setChecked] = useState(false);
 
   return (
-    <div className="screen compact">
+    <div className="screen compact" data-testid="consent-gate-screen">
       <p className="eyebrow">Consentimento</p>
       <h2>Confirme os documentos legais para continuar</h2>
       <p className="muted">
@@ -55,14 +55,19 @@ function ConsentGate({
       </p>
 
       <label className="check-row">
-        <input type="checkbox" checked={checked} onChange={(event) => setChecked(event.target.checked)} />
+        <input
+          data-testid="consent-checkbox"
+          type="checkbox"
+          checked={checked}
+          onChange={(event) => setChecked(event.target.checked)}
+        />
         <span>
           Li e aceito os <Link to="/terms">Termos de Uso</Link> e a{" "}
           <Link to="/privacy">Política de Privacidade</Link>.
         </span>
       </label>
 
-      <button className="primary-btn" disabled={!checked || loading} onClick={onAccept}>
+      <button data-testid="consent-accept-button" className="primary-btn" disabled={!checked || loading} onClick={onAccept}>
         {loading ? "Registrando aceite..." : "Aceitar e continuar"}
       </button>
 
@@ -83,17 +88,22 @@ function AgeGate({
   const [checked, setChecked] = useState(false);
 
   return (
-    <div className="screen compact">
+    <div className="screen compact" data-testid="age-gate-screen">
       <p className="eyebrow">Segurança</p>
       <h2>Confirmação obrigatória de idade</h2>
       <p className="muted">A Medusa é destinada apenas para pessoas com 18 anos ou mais.</p>
 
       <label className="check-row">
-        <input type="checkbox" checked={checked} onChange={(event) => setChecked(event.target.checked)} />
+        <input
+          data-testid="age-confirm-checkbox"
+          type="checkbox"
+          checked={checked}
+          onChange={(event) => setChecked(event.target.checked)}
+        />
         <span>Declaro que tenho 18 anos ou mais.</span>
       </label>
 
-      <button className="primary-btn" disabled={!checked || loading} onClick={onConfirm}>
+      <button data-testid="age-confirm-continue-button" className="primary-btn" disabled={!checked || loading} onClick={onConfirm}>
         {loading ? "Validando..." : "Continuar"}
       </button>
     </div>
@@ -273,7 +283,8 @@ function ProductApp() {
     setConfirmingAge(true);
     setError("");
     try {
-      const updatedProfile = await confirmAge(session.user.id);
+      const supportsAgeColumns = Boolean(profile && "age_confirmed_at" in profile);
+      const updatedProfile = await confirmAge(session.user.id, supportsAgeColumns);
       setProfile(updatedProfile);
     } catch (confirmError) {
       setError(confirmError instanceof Error ? confirmError.message : "Falha ao confirmar idade");
@@ -403,7 +414,7 @@ function ProductApp() {
   if (loading) {
     return (
       <div className="app-shell">
-        <p className="muted">Carregando dados...</p>
+        <p className="muted" data-testid="app-loading-state">Carregando dados...</p>
       </div>
     );
   }
@@ -415,7 +426,7 @@ function ProductApp() {
   if (!profile) {
     return (
       <div className="app-shell">
-        <p className="muted">Carregando perfil...</p>
+        <p className="muted" data-testid="profile-loading-state">Carregando perfil...</p>
       </div>
     );
   }
@@ -424,7 +435,7 @@ function ProductApp() {
     return (
       <div className="app-shell">
         <AgeGate loading={confirmingAge} onConfirm={handleConfirmAge} />
-        {error ? <p className="status-error">{error}</p> : null}
+        {error ? <p className="status-error" data-testid="age-gate-error">{error}</p> : null}
       </div>
     );
   }
@@ -433,7 +444,7 @@ function ProductApp() {
     return (
       <div className="app-shell">
         <ConsentGate loading={savingConsent} onAccept={handleAcceptConsent} />
-        {error ? <p className="status-error">{error}</p> : null}
+        {error ? <p className="status-error" data-testid="consent-gate-error">{error}</p> : null}
       </div>
     );
   }
@@ -448,7 +459,7 @@ function ProductApp() {
           onUploadDocument={handleUploadDocument}
           onSave={handleOnboardingSave}
         />
-        {error ? <p className="status-error">{error}</p> : null}
+        {error ? <p className="status-error" data-testid="onboarding-flow-error">{error}</p> : null}
       </div>
     );
   }
@@ -461,7 +472,7 @@ function ProductApp() {
           defaultEnergy={profile.energy_default}
           onConfirm={handleCheckIn}
         />
-        {error ? <p className="status-error">{error}</p> : null}
+        {error ? <p className="status-error" data-testid="checkin-flow-error">{error}</p> : null}
       </div>
     );
   }
@@ -475,16 +486,24 @@ function ProductApp() {
           <p className="muted">Energia atual: {currentEnergy}</p>
         </div>
         <nav className="top-tabs">
-          <button className={`ghost-btn ${tab === "chat" ? "active-tab" : ""}`} onClick={() => setTab("chat")}>
+          <button
+            data-testid="top-tab-chat-button"
+            className={`ghost-btn ${tab === "chat" ? "active-tab" : ""}`}
+            onClick={() => setTab("chat")}
+          >
             Chat
           </button>
-          <button className={`ghost-btn ${tab === "setup" ? "active-tab" : ""}`} onClick={() => setTab("setup")}>
+          <button
+            data-testid="top-tab-setup-button"
+            className={`ghost-btn ${tab === "setup" ? "active-tab" : ""}`}
+            onClick={() => setTab("setup")}
+          >
             Setup
           </button>
         </nav>
       </header>
 
-      {error ? <p className="status-error">{error}</p> : null}
+      {error ? <p className="status-error" data-testid="product-app-error">{error}</p> : null}
 
       {tab === "chat" ? (
         <ChatScreen
