@@ -10,13 +10,14 @@ import type {
   Message,
   Profile,
   ProfileOnboarding,
+  UserDocument,
   UserConsent,
 } from "../types/medusa";
 
 const functionName = import.meta.env.VITE_SUPABASE_FUNCTION_NAME || "claude-proxy";
+export const AGE_CONFIRM_VERSION = "2026-05";
 
-const PROFILE_COLUMNS =
-  "id, created_at, display_name, onboarding, energy_default, terms_accepted_at, privacy_accepted_at, terms_version, privacy_version";
+const PROFILE_COLUMNS = "*";
 
 export async function ensureProfile(session: Session): Promise<Profile> {
   const { data: existing, error: fetchError } = await supabase
@@ -71,6 +72,83 @@ export async function updateEnergy(userId: string, energy: EnergyLevel): Promise
     .eq("id", userId);
 
   if (error) throw error;
+}
+
+export async function confirmAge(userId: string): Promise<Profile> {
+  const confirmedAt = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({
+      age_confirmed_at: confirmedAt,
+      age_confirmed_version: AGE_CONFIRM_VERSION,
+    })
+    .eq("id", userId)
+    .select(PROFILE_COLUMNS)
+    .single();
+
+  if (!error) return data as Profile;
+
+  const message = (error.message || "").toLowerCase();
+  const missingColumn =
+    message.includes("age_confirmed_at") || message.includes("age_confirmed_version") || message.includes("column");
+
+  if (!missingColumn) throw error;
+
+  const { data: current } = await supabase.from("profiles").select("onboarding").eq("id", userId).maybeSingle();
+  const fallbackOnboarding = {
+    ...(current?.onboarding ?? {}),
+    age_confirmed: true,
+    age_confirmed_at: confirmedAt,
+  };
+
+  const { data: fallbackData, error: fallbackError } = await supabase
+    .from("profiles")
+    .update({ onboarding: fallbackOnboarding })
+    .eq("id", userId)
+    .select(PROFILE_COLUMNS)
+    .single();
+
+  if (fallbackError) throw fallbackError;
+  return fallbackData as Profile;
+}
+
+export async function uploadUserDocument(userId: string, file: File): Promise<UserDocument> {
+  if (!file || file.type !== "application/pdf") {
+    throw new Error("Envie apenas arquivo PDF.");
+  }
+
+  const extension = file.name.toLowerCase().endsWith(".pdf") ? "pdf" : "pdf";
+  const generatedId = typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const filePath = `${userId}/${generatedId}.${extension}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("user-documents")
+    .upload(filePath, file, {
+      contentType: "application/pdf",
+      upsert: false,
+    });
+
+  if (uploadError) throw uploadError;
+
+  const { data, error } = await supabase
+    .from("user_documents")
+    .insert({
+      user_id: userId,
+      file_path: filePath,
+      file_name: file.name,
+      mime_type: file.type,
+      extracted_summary: null,
+    })
+    .select("id, user_id, file_path, file_name, mime_type, uploaded_at, extracted_summary")
+    .single();
+
+  if (error) {
+    await supabase.storage.from("user-documents").remove([filePath]);
+    throw error;
+  }
+  return data as UserDocument;
 }
 
 export async function ensureConversation(userId: string): Promise<Conversation> {
@@ -199,6 +277,9 @@ export async function resetUserData(userId: string): Promise<void> {
 
   const { error: deleteMemoryError } = await supabase.from("memories").delete().eq("user_id", userId);
   if (deleteMemoryError) throw deleteMemoryError;
+
+  const { error: deleteDocumentsError } = await supabase.from("user_documents").delete().eq("user_id", userId);
+  if (deleteDocumentsError) throw deleteDocumentsError;
 
   const { error: resetProfileError } = await supabase
     .from("profiles")

@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 
 import { PENDING_CONSENT_KEY } from "../constants/legal";
 import { supabase } from "../lib/supabase";
+import { AGE_CONFIRM_VERSION } from "../services/medusa";
 
 interface AuthScreenProps {
   onAuthDone: () => Promise<void>;
@@ -16,6 +17,7 @@ export function AuthScreen({ onAuthDone }: AuthScreenProps) {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [acceptedLegal, setAcceptedLegal] = useState(false);
+  const [acceptedAge, setAcceptedAge] = useState(false);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -29,10 +31,23 @@ export function AuthScreen({ onAuthDone }: AuthScreenProps) {
           setError("Você precisa aceitar os Termos de Uso e a Política de Privacidade.");
           return;
         }
+        if (!acceptedAge) {
+          setError("Você precisa declarar que tem 18 anos ou mais.");
+          return;
+        }
+
+        const ageConfirmedAt = new Date().toISOString();
 
         const { data, error: registerError } = await supabase.auth.signUp({
           email: email.trim(),
           password,
+          options: {
+            data: {
+              age_confirmed: true,
+              age_confirmed_at: ageConfirmedAt,
+              age_confirmed_version: AGE_CONFIRM_VERSION,
+            },
+          },
         });
         if (registerError) throw registerError;
         localStorage.setItem(PENDING_CONSENT_KEY, "true");
@@ -100,18 +115,29 @@ export function AuthScreen({ onAuthDone }: AuthScreenProps) {
           />
 
           {mode === "register" ? (
-            <label className="check-row">
-              <input
-                type="checkbox"
-                checked={acceptedLegal}
-                onChange={(event) => setAcceptedLegal(event.target.checked)}
-                required
-              />
-              <span>
-                Li e aceito os <a href="/terms">Termos de Uso</a> e a{" "}
-                <a href="/privacy">Política de Privacidade</a>.
-              </span>
-            </label>
+            <>
+              <label className="check-row">
+                <input
+                  type="checkbox"
+                  checked={acceptedAge}
+                  onChange={(event) => setAcceptedAge(event.target.checked)}
+                  required
+                />
+                <span>Declaro que tenho 18 anos ou mais.</span>
+              </label>
+              <label className="check-row">
+                <input
+                  type="checkbox"
+                  checked={acceptedLegal}
+                  onChange={(event) => setAcceptedLegal(event.target.checked)}
+                  required
+                />
+                <span>
+                  Li e aceito os <a href="/terms">Termos de Uso</a> e a{" "}
+                  <a href="/privacy">Política de Privacidade</a>.
+                </span>
+              </label>
+            </>
           ) : null}
 
           <button className="primary-btn" type="submit" disabled={loading}>

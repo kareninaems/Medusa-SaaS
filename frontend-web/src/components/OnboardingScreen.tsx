@@ -4,56 +4,190 @@ import type { ProfileOnboarding } from "../types/medusa";
 
 interface OnboardingScreenProps {
   loading?: boolean;
+  uploadingDocument?: boolean;
   defaultName: string;
+  onUploadDocument: (file: File) => Promise<void>;
   onSave: (payload: { displayName: string; onboarding: ProfileOnboarding }) => Promise<void>;
 }
 
-const DAYS = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"];
-const TOTAL_STEPS = 6;
+const DAYS = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo", "Variável"];
+const PERIODS = ["Manhã", "Tarde", "Noite", "Madrugada", "Comercial", "Plantões/turnos", "Variável"];
+const EDUCATION_OPTIONS = [
+  "Ensino médio",
+  "Técnico",
+  "Graduação",
+  "Pós-graduação",
+  "Mestrado/Doutorado",
+  "Prefiro não informar",
+  "Outro",
+];
+const PROFESSION_OPTIONS = [
+  "Saúde",
+  "Educação",
+  "Tecnologia",
+  "Gestão/empreendedorismo",
+  "Estudante",
+  "Cuidado/família",
+  "Atendimento/serviços",
+  "Prefiro não informar",
+  "Outro",
+];
+const CONSTRAINT_OPTIONS = [
+  "Sono irregular",
+  "Plantões/turnos",
+  "Deslocamento longo",
+  "Filhos/cuidado de alguém",
+  "Estudos",
+  "Saúde",
+  "Carga sensorial alta",
+  "Carga emocional alta",
+  "Pouco tempo livre",
+  "Prefiro não informar",
+  "Outro",
+];
+const BLOCKER_OPTIONS = [
+  "Começar tarefas",
+  "Priorizar",
+  "Finalizar",
+  "Responder mensagens",
+  "Organizar casa",
+  "Tomar decisões",
+  "Medo de errar",
+  "Sobrecarga",
+  "Cansaço",
+  "Disforia/desânimo",
+  "Outro",
+];
+const LOW_ENERGY_OPTIONS = [
+  "Uma tarefa pequena",
+  "Pausa de 10 minutos",
+  "Água/comida",
+  "Sair do lugar",
+  "Lista curta",
+  "Silêncio",
+  "Movimento",
+  "Falar com alguém",
+  "Dormir/descansar",
+  "Outro",
+];
+const GUIDANCE_OPTIONS = ["Direta", "Acolhedora", "Técnica", "Mínima", "Passo a passo", "Sem rodeios"];
+const LIMIT_OPTIONS = [
+  "Não usar culpa",
+  "Não dar muitas opções",
+  "Não falar como terapeuta",
+  "Não minimizar sentimento",
+  "Não ser agressiva",
+  "Não fazer texto longo",
+  "Não insistir quando eu estiver sem energia",
+  "Outro",
+];
+const TOTAL_STEPS = 7;
 
-export function OnboardingScreen({ loading = false, defaultName, onSave }: OnboardingScreenProps) {
+function toggleValue(current: string[], value: string) {
+  return current.includes(value) ? current.filter((item) => item !== value) : [...current, value];
+}
+
+export function OnboardingScreen({
+  loading = false,
+  uploadingDocument = false,
+  defaultName,
+  onUploadDocument,
+  onSave,
+}: OnboardingScreenProps) {
   const [step, setStep] = useState(0);
   const [displayName, setDisplayName] = useState(defaultName);
-  const [educationLevel, setEducationLevel] = useState("graduação");
-  const [profession, setProfession] = useState("");
-  const [constraints, setConstraints] = useState("");
-  const [blockers, setBlockers] = useState("");
-  const [lowEnergyWorks, setLowEnergyWorks] = useState("");
-  const [guidanceStyle, setGuidanceStyle] = useState("direta");
-  const [knownPatterns, setKnownPatterns] = useState("");
-  const [neverDo, setNeverDo] = useState("");
-  const [days, setDays] = useState<string[]>(["segunda", "terça", "quarta", "quinta", "sexta"]);
-  const [startTime, setStartTime] = useState("08:00");
-  const [endTime, setEndTime] = useState("18:00");
-  const [variableSchedule, setVariableSchedule] = useState(false);
+  const [educationLevel, setEducationLevel] = useState("Graduação");
+  const [educationOther, setEducationOther] = useState("");
+  const [professionCategory, setProfessionCategory] = useState("Tecnologia");
+  const [professionOther, setProfessionOther] = useState("");
+
+  const [days, setDays] = useState<string[]>(["Segunda", "Terça", "Quarta", "Quinta", "Sexta"]);
+  const [periods, setPeriods] = useState<string[]>(["Comercial"]);
   const [routineNotes, setRoutineNotes] = useState("");
+
+  const [constraints, setConstraints] = useState<string[]>([]);
+  const [constraintsOther, setConstraintsOther] = useState("");
+
+  const [blockers, setBlockers] = useState<string[]>([]);
+  const [blockersOther, setBlockersOther] = useState("");
+
+  const [lowEnergyWorks, setLowEnergyWorks] = useState<string[]>([]);
+  const [lowEnergyOther, setLowEnergyOther] = useState("");
+
+  const [guidanceStyle, setGuidanceStyle] = useState("Direta");
+
+  const [neverDo, setNeverDo] = useState<string[]>(["Não usar culpa"]);
+  const [neverDoOther, setNeverDoOther] = useState("");
+
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadStatus, setUploadStatus] = useState("");
   const [error, setError] = useState("");
 
-  const toggleDay = (day: string) => {
-    setDays((current) =>
-      current.includes(day) ? current.filter((item) => item !== day) : [...current, day],
-    );
-  };
-
   const canGoNext = useMemo(() => {
-    if (step === 0) return !!displayName.trim();
-    if (step === 1) return !!profession.trim();
-    if (step === 2) return days.length > 0;
-    if (step === 3) return !!constraints.trim();
-    if (step === 4) return !!blockers.trim() && !!lowEnergyWorks.trim();
-    if (step === 5) return !!knownPatterns.trim() && !!neverDo.trim();
+    if (step === 0) {
+      if (!displayName.trim() || !educationLevel || !professionCategory) return false;
+      if (educationLevel === "Outro" && !educationOther.trim()) return false;
+      if (professionCategory === "Outro" && !professionOther.trim()) return false;
+      return true;
+    }
+    if (step === 1) return days.length > 0 && periods.length > 0;
+    if (step === 2) {
+      if (constraints.length === 0) return false;
+      if (constraints.includes("Outro") && !constraintsOther.trim()) return false;
+      return true;
+    }
+    if (step === 3) {
+      if (blockers.length === 0) return false;
+      if (blockers.includes("Outro") && !blockersOther.trim()) return false;
+      return true;
+    }
+    if (step === 4) {
+      if (lowEnergyWorks.length === 0) return false;
+      if (lowEnergyWorks.includes("Outro") && !lowEnergyOther.trim()) return false;
+      return true;
+    }
+    if (step === 5) return !!guidanceStyle;
+    if (step === 6) {
+      if (neverDo.length === 0) return false;
+      if (neverDo.includes("Outro") && !neverDoOther.trim()) return false;
+      return true;
+    }
     return false;
   }, [
-    step,
-    displayName,
-    profession,
-    days.length,
-    constraints,
     blockers,
+    blockersOther,
+    constraints,
+    constraintsOther,
+    days.length,
+    displayName,
+    educationLevel,
+    educationOther,
+    guidanceStyle,
+    lowEnergyOther,
     lowEnergyWorks,
-    knownPatterns,
     neverDo,
+    neverDoOther,
+    periods.length,
+    professionCategory,
+    professionOther,
+    step,
   ]);
+
+  const uploadSelectedDocument = async () => {
+    if (!selectedFile) {
+      setUploadStatus("Selecione um PDF antes de enviar.");
+      return;
+    }
+
+    setUploadStatus("");
+    try {
+      await onUploadDocument(selectedFile);
+      setSelectedFile(null);
+      setUploadStatus("PDF enviado com sucesso. Extração permanece pendente no MVP.");
+    } catch {
+      setUploadStatus("Não foi possível enviar o PDF agora.");
+    }
+  };
 
   const saveOnboarding = async () => {
     setError("");
@@ -67,18 +201,21 @@ export function OnboardingScreen({ loading = false, defaultName, onSave }: Onboa
       displayName: displayName.trim() || defaultName,
       onboarding: {
         education_level: educationLevel,
-        profession: profession.trim(),
-        constraints: constraints.trim(),
-        blockers: blockers.trim(),
-        low_energy_works: lowEnergyWorks.trim(),
+        education_level_other: educationLevel === "Outro" ? educationOther.trim() : null,
+        profession_category: professionCategory,
+        profession_other: professionCategory === "Outro" ? professionOther.trim() : null,
+        constraints,
+        constraints_other: constraints.includes("Outro") ? constraintsOther.trim() : null,
+        blockers,
+        blockers_other: blockers.includes("Outro") ? blockersOther.trim() : null,
+        low_energy_works: lowEnergyWorks,
+        low_energy_works_other: lowEnergyWorks.includes("Outro") ? lowEnergyOther.trim() : null,
         guidance_style: guidanceStyle,
-        known_patterns: knownPatterns.trim(),
-        never_do: neverDo.trim(),
+        never_do: neverDo,
+        never_do_other: neverDo.includes("Outro") ? neverDoOther.trim() : null,
         routine: {
           days,
-          start_time: startTime,
-          end_time: endTime,
-          variable_schedule: variableSchedule,
+          periods,
           notes: routineNotes.trim(),
         },
       },
@@ -103,7 +240,7 @@ export function OnboardingScreen({ loading = false, defaultName, onSave }: Onboa
     if (step === 0) {
       return (
         <>
-          <h2>Como você quer ser chamada(o)?</h2>
+          <h2>Identidade e contexto</h2>
           <label className="field">
             <span>Nome de exibição</span>
             <input
@@ -113,6 +250,52 @@ export function OnboardingScreen({ loading = false, defaultName, onSave }: Onboa
               placeholder="Seu nome no app"
             />
           </label>
+          <label className="field">
+            <span>Escolaridade</span>
+            <select className="input" value={educationLevel} onChange={(event) => setEducationLevel(event.target.value)}>
+              {EDUCATION_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
+          {educationLevel === "Outro" ? (
+            <label className="field">
+              <span>Outro (escolaridade)</span>
+              <input
+                className="input"
+                value={educationOther}
+                onChange={(event) => setEducationOther(event.target.value)}
+                placeholder="Descreva em poucas palavras"
+              />
+            </label>
+          ) : null}
+          <label className="field">
+            <span>Profissão/ocupação</span>
+            <select
+              className="input"
+              value={professionCategory}
+              onChange={(event) => setProfessionCategory(event.target.value)}
+            >
+              {PROFESSION_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
+          {professionCategory === "Outro" ? (
+            <label className="field">
+              <span>Outro (profissão/ocupação)</span>
+              <input
+                className="input"
+                value={professionOther}
+                onChange={(event) => setProfessionOther(event.target.value)}
+                placeholder="Descreva em poucas palavras"
+              />
+            </label>
+          ) : null}
         </>
       );
     }
@@ -120,26 +303,39 @@ export function OnboardingScreen({ loading = false, defaultName, onSave }: Onboa
     if (step === 1) {
       return (
         <>
-          <h2>Qual é sua base hoje?</h2>
+          <h2>Rotina</h2>
+          <p className="muted">Selecione dias e períodos mais comuns.</p>
+          <div className="chips-wrap">
+            {DAYS.map((day) => (
+              <button
+                type="button"
+                key={day}
+                className={`chip ${days.includes(day) ? "chip-active" : ""}`}
+                onClick={() => setDays((current) => toggleValue(current, day))}
+              >
+                {day}
+              </button>
+            ))}
+          </div>
+          <div className="chips-wrap">
+            {PERIODS.map((period) => (
+              <button
+                type="button"
+                key={period}
+                className={`chip ${periods.includes(period) ? "chip-active" : ""}`}
+                onClick={() => setPeriods((current) => toggleValue(current, period))}
+              >
+                {period}
+              </button>
+            ))}
+          </div>
           <label className="field">
-            <span>Escolaridade</span>
-            <select className="input" value={educationLevel} onChange={(event) => setEducationLevel(event.target.value)}>
-              <option>ensino médio</option>
-              <option>graduação</option>
-              <option>pós</option>
-              <option>mestrado</option>
-              <option>doutorado</option>
-              <option>técnico</option>
-              <option>outro</option>
-            </select>
-          </label>
-          <label className="field">
-            <span>Profissão / ocupação</span>
+            <span>Alguma observação da rotina? (opcional)</span>
             <input
               className="input"
-              value={profession}
-              onChange={(event) => setProfession(event.target.value)}
-              placeholder="Ex: analista, estudante, professora"
+              value={routineNotes}
+              onChange={(event) => setRoutineNotes(event.target.value)}
+              placeholder="Ex: tardes com mais reuniões"
             />
           </label>
         </>
@@ -149,47 +345,30 @@ export function OnboardingScreen({ loading = false, defaultName, onSave }: Onboa
     if (step === 2) {
       return (
         <>
-          <h2>Como é sua rotina principal?</h2>
-          <p className="muted">Selecione os dias e horários típicos.</p>
+          <h2>Restrições</h2>
           <div className="chips-wrap">
-            {DAYS.map((day) => (
+            {CONSTRAINT_OPTIONS.map((option) => (
               <button
                 type="button"
-                key={day}
-                className={`chip ${days.includes(day) ? "chip-active" : ""}`}
-                onClick={() => toggleDay(day)}
+                key={option}
+                className={`chip ${constraints.includes(option) ? "chip-active" : ""}`}
+                onClick={() => setConstraints((current) => toggleValue(current, option))}
               >
-                {day}
+                {option}
               </button>
             ))}
           </div>
-          <div className="time-row">
+          {constraints.includes("Outro") ? (
             <label className="field">
-              <span>Início típico</span>
-              <input className="input" type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} />
+              <span>Outro (restrições)</span>
+              <input
+                className="input"
+                value={constraintsOther}
+                onChange={(event) => setConstraintsOther(event.target.value)}
+                placeholder="Descreva em poucas palavras"
+              />
             </label>
-            <label className="field">
-              <span>Fim típico</span>
-              <input className="input" type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} />
-            </label>
-          </div>
-          <label className="check-row">
-            <input
-              type="checkbox"
-              checked={variableSchedule}
-              onChange={(event) => setVariableSchedule(event.target.checked)}
-            />
-            <span>Tenho horários variáveis.</span>
-          </label>
-          <label className="field">
-            <span>Blocos mais difíceis</span>
-            <textarea
-              className="input textarea"
-              value={routineNotes}
-              onChange={(event) => setRoutineNotes(event.target.value)}
-              placeholder="Ex: fim da tarde com cansaço"
-            />
-          </label>
+          ) : null}
         </>
       );
     }
@@ -197,16 +376,30 @@ export function OnboardingScreen({ loading = false, defaultName, onSave }: Onboa
     if (step === 3) {
       return (
         <>
-          <h2>Quais restrições precisam ser respeitadas?</h2>
-          <label className="field">
-            <span>Restrições de rotina</span>
-            <textarea
-              className="input textarea"
-              value={constraints}
-              onChange={(event) => setConstraints(event.target.value)}
-              placeholder="Ex: deslocamento, filhos, plantões, saúde"
-            />
-          </label>
+          <h2>Travas</h2>
+          <div className="chips-wrap">
+            {BLOCKER_OPTIONS.map((option) => (
+              <button
+                type="button"
+                key={option}
+                className={`chip ${blockers.includes(option) ? "chip-active" : ""}`}
+                onClick={() => setBlockers((current) => toggleValue(current, option))}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+          {blockers.includes("Outro") ? (
+            <label className="field">
+              <span>Outro (travas)</span>
+              <input
+                className="input"
+                value={blockersOther}
+                onChange={(event) => setBlockersOther(event.target.value)}
+                placeholder="Descreva em poucas palavras"
+              />
+            </label>
+          ) : null}
         </>
       );
     }
@@ -214,59 +407,97 @@ export function OnboardingScreen({ loading = false, defaultName, onSave }: Onboa
     if (step === 4) {
       return (
         <>
-          <h2>Quando trava, o que acontece?</h2>
-          <label className="field">
-            <span>O que costuma te travar?</span>
-            <textarea
-              className="input textarea"
-              value={blockers}
-              onChange={(event) => setBlockers(event.target.value)}
-              placeholder="Ex: sobrecarga, medo de errar"
-            />
-          </label>
-          <label className="field">
-            <span>O que funciona em energia baixa?</span>
-            <textarea
-              className="input textarea"
-              value={lowEnergyWorks}
-              onChange={(event) => setLowEnergyWorks(event.target.value)}
-              placeholder="Ex: uma tarefa curta e pausa"
-            />
-          </label>
+          <h2>Energia baixa</h2>
+          <div className="chips-wrap">
+            {LOW_ENERGY_OPTIONS.map((option) => (
+              <button
+                type="button"
+                key={option}
+                className={`chip ${lowEnergyWorks.includes(option) ? "chip-active" : ""}`}
+                onClick={() => setLowEnergyWorks((current) => toggleValue(current, option))}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+          {lowEnergyWorks.includes("Outro") ? (
+            <label className="field">
+              <span>Outro (energia baixa)</span>
+              <input
+                className="input"
+                value={lowEnergyOther}
+                onChange={(event) => setLowEnergyOther(event.target.value)}
+                placeholder="Descreva em poucas palavras"
+              />
+            </label>
+          ) : null}
+        </>
+      );
+    }
+
+    if (step === 5) {
+      return (
+        <>
+          <h2>Estilo de orientação</h2>
+          <div className="chips-wrap">
+            {GUIDANCE_OPTIONS.map((option) => (
+              <button
+                type="button"
+                key={option}
+                className={`chip ${guidanceStyle === option ? "chip-active" : ""}`}
+                onClick={() => setGuidanceStyle(option)}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
         </>
       );
     }
 
     return (
       <>
-        <h2>Como você quer receber orientação?</h2>
-        <label className="field">
-          <span>Estilo preferido</span>
-          <select className="input" value={guidanceStyle} onChange={(event) => setGuidanceStyle(event.target.value)}>
-            <option value="direta">direta</option>
-            <option value="acolhedora">acolhedora</option>
-            <option value="técnica">técnica</option>
-            <option value="mínima">mínima</option>
-          </select>
-        </label>
-        <label className="field">
-          <span>Padrões que você já reconhece</span>
-          <textarea
-            className="input textarea"
-            value={knownPatterns}
-            onChange={(event) => setKnownPatterns(event.target.value)}
-            placeholder="Ex: adiar tarefas complexas"
+        <h2>Limites da Medusa + PDF opcional</h2>
+        <div className="chips-wrap">
+          {LIMIT_OPTIONS.map((option) => (
+            <button
+              type="button"
+              key={option}
+              className={`chip ${neverDo.includes(option) ? "chip-active" : ""}`}
+              onClick={() => setNeverDo((current) => toggleValue(current, option))}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+        {neverDo.includes("Outro") ? (
+          <label className="field">
+            <span>Outro (limites)</span>
+            <input
+              className="input"
+              value={neverDoOther}
+              onChange={(event) => setNeverDoOther(event.target.value)}
+              placeholder="Descreva em poucas palavras"
+            />
+          </label>
+        ) : null}
+
+        <div className="onboarding-upload-box">
+          <p className="muted">
+            Adicionar PDF ou laudo (opcional). Use apenas se quiser que a Medusa considere um documento seu. Evite enviar
+            documentos de terceiros.
+          </p>
+          <input
+            className="input"
+            type="file"
+            accept="application/pdf"
+            onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
           />
-        </label>
-        <label className="field">
-          <span>O que a Medusa nunca deve fazer</span>
-          <textarea
-            className="input textarea"
-            value={neverDo}
-            onChange={(event) => setNeverDo(event.target.value)}
-            placeholder="Ex: usar culpa ou ordens agressivas"
-          />
-        </label>
+          <button type="button" className="ghost-btn" onClick={uploadSelectedDocument} disabled={uploadingDocument}>
+            {uploadingDocument ? "Enviando PDF..." : "Enviar PDF"}
+          </button>
+          {uploadStatus ? <p className="status-ok">{uploadStatus}</p> : null}
+        </div>
       </>
     );
   };
@@ -293,7 +524,7 @@ export function OnboardingScreen({ loading = false, defaultName, onSave }: Onboa
             </button>
           ) : (
             <button className="primary-btn" onClick={saveOnboarding} disabled={loading}>
-              {loading ? "Salvando" : "Salvar"}
+              {loading ? "Salvando" : "Salvar onboarding"}
             </button>
           )}
         </div>

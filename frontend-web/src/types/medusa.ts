@@ -3,20 +3,25 @@ export type MedusaMode = "ACAO" | "FOCO" | "PROCESSO" | "TRAVA";
 
 export interface ProfileOnboarding {
   education_level: string;
-  profession: string;
-  constraints: string;
-  blockers: string;
-  low_energy_works: string;
+  education_level_other: string | null;
+  profession_category: string;
+  profession_other: string | null;
+  constraints: string[];
+  constraints_other: string | null;
+  blockers: string[];
+  blockers_other: string | null;
+  low_energy_works: string[];
+  low_energy_works_other: string | null;
   guidance_style: string;
-  known_patterns: string;
-  never_do: string;
+  never_do: string[];
+  never_do_other: string | null;
   routine: {
     days: string[];
-    start_time: string;
-    end_time: string;
-    variable_schedule: boolean;
+    periods: string[];
     notes: string;
   };
+  age_confirmed?: boolean;
+  age_confirmed_at?: string;
 }
 
 export interface Profile {
@@ -25,10 +30,22 @@ export interface Profile {
   display_name: string | null;
   onboarding: ProfileOnboarding | null;
   energy_default: EnergyLevel | null;
+  age_confirmed_at: string | null;
+  age_confirmed_version: string | null;
   terms_accepted_at: string | null;
   privacy_accepted_at: string | null;
   terms_version: string | null;
   privacy_version: string | null;
+}
+
+export interface UserDocument {
+  id: string;
+  user_id: string;
+  file_path: string;
+  file_name: string | null;
+  mime_type: string | null;
+  uploaded_at: string;
+  extracted_summary: string | null;
 }
 
 export interface UserConsent {

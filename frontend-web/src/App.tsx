@@ -13,6 +13,7 @@ import { PENDING_CONSENT_KEY, PRIVACY_VERSION, TERMS_VERSION } from "./constants
 import { supabase } from "./lib/supabase";
 import {
   callClaudeProxy,
+  confirmAge,
   ensureConversation,
   ensureProfile,
   getMemory,
@@ -23,6 +24,7 @@ import {
   resetUserData,
   updateEnergy,
   updateOnboarding,
+  uploadUserDocument,
   upsertMemory,
 } from "./services/medusa";
 import type {
@@ -71,6 +73,33 @@ function ConsentGate({
   );
 }
 
+function AgeGate({
+  loading,
+  onConfirm,
+}: {
+  loading: boolean;
+  onConfirm: () => Promise<void>;
+}) {
+  const [checked, setChecked] = useState(false);
+
+  return (
+    <div className="screen compact">
+      <p className="eyebrow">Segurança</p>
+      <h2>Confirmação obrigatória de idade</h2>
+      <p className="muted">A Medusa é destinada apenas para pessoas com 18 anos ou mais.</p>
+
+      <label className="check-row">
+        <input type="checkbox" checked={checked} onChange={(event) => setChecked(event.target.checked)} />
+        <span>Declaro que tenho 18 anos ou mais.</span>
+      </label>
+
+      <button className="primary-btn" disabled={!checked || loading} onClick={onConfirm}>
+        {loading ? "Validando..." : "Continuar"}
+      </button>
+    </div>
+  );
+}
+
 function ProductApp() {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -87,21 +116,35 @@ function ProductApp() {
   const [savingMemory, setSavingMemory] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [savingConsent, setSavingConsent] = useState(false);
+  const [confirmingAge, setConfirmingAge] = useState(false);
+  const [uploadingDocument, setUploadingDocument] = useState(false);
   const [error, setError] = useState("");
 
   const onboardingMissing = useMemo(() => {
     if (!profile?.onboarding) return true;
+
+    const hasArray = (value: unknown) => Array.isArray(value) && value.length > 0;
+    const routineDays = profile.onboarding.routine?.days;
+    const routinePeriods = profile.onboarding.routine?.periods;
+
     return (
       !profile.onboarding.education_level ||
-      !profile.onboarding.profession ||
-      !profile.onboarding.constraints ||
-      !profile.onboarding.blockers ||
-      !profile.onboarding.low_energy_works ||
+      !profile.onboarding.profession_category ||
+      !hasArray(profile.onboarding.constraints) ||
+      !hasArray(profile.onboarding.blockers) ||
+      !hasArray(profile.onboarding.low_energy_works) ||
       !profile.onboarding.guidance_style ||
-      !profile.onboarding.known_patterns ||
-      !profile.onboarding.never_do ||
-      !profile.onboarding.routine
+      !hasArray(profile.onboarding.never_do) ||
+      !hasArray(routineDays) ||
+      !hasArray(routinePeriods)
     );
+  }, [profile]);
+
+  const needsAgeConfirmation = useMemo(() => {
+    if (!profile) return true;
+    const confirmedViaColumns = Boolean(profile.age_confirmed_at);
+    const confirmedViaFallback = Boolean(profile.onboarding?.age_confirmed);
+    return !(confirmedViaColumns || confirmedViaFallback);
   }, [profile]);
 
   const currentEnergy = checkInEnergy ?? profile?.energy_default ?? 2;
@@ -183,10 +226,23 @@ function ProductApp() {
     setSavingOnboarding(true);
     setError("");
     try {
+      const onboardingWithAgeFallback = {
+        ...payload.onboarding,
+        age_confirmed:
+          payload.onboarding.age_confirmed ??
+          profile?.onboarding?.age_confirmed ??
+          Boolean(profile?.age_confirmed_at),
+        age_confirmed_at:
+          payload.onboarding.age_confirmed_at ??
+          profile?.onboarding?.age_confirmed_at ??
+          profile?.age_confirmed_at ??
+          undefined,
+      };
+
       const updatedProfile = await updateOnboarding(
         session.user.id,
         payload.displayName,
-        payload.onboarding,
+        onboardingWithAgeFallback,
       );
       setProfile(updatedProfile);
     } catch (saveError) {
@@ -209,6 +265,34 @@ function ProductApp() {
       setError(saveError instanceof Error ? saveError.message : "Falha ao salvar check-in");
     } finally {
       setSavingCheckIn(false);
+    }
+  };
+
+  const handleConfirmAge = async () => {
+    if (!session) return;
+    setConfirmingAge(true);
+    setError("");
+    try {
+      const updatedProfile = await confirmAge(session.user.id);
+      setProfile(updatedProfile);
+    } catch (confirmError) {
+      setError(confirmError instanceof Error ? confirmError.message : "Falha ao confirmar idade");
+    } finally {
+      setConfirmingAge(false);
+    }
+  };
+
+  const handleUploadDocument = async (file: File) => {
+    if (!session) return;
+    setUploadingDocument(true);
+    setError("");
+    try {
+      await uploadUserDocument(session.user.id, file);
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Falha no upload do documento");
+      throw uploadError;
+    } finally {
+      setUploadingDocument(false);
     }
   };
 
@@ -336,6 +420,15 @@ function ProductApp() {
     );
   }
 
+  if (needsAgeConfirmation) {
+    return (
+      <div className="app-shell">
+        <AgeGate loading={confirmingAge} onConfirm={handleConfirmAge} />
+        {error ? <p className="status-error">{error}</p> : null}
+      </div>
+    );
+  }
+
   if (needsConsent(profile)) {
     return (
       <div className="app-shell">
@@ -350,7 +443,9 @@ function ProductApp() {
       <div className="app-shell">
         <OnboardingScreen
           loading={savingOnboarding}
+          uploadingDocument={uploadingDocument}
           defaultName={session.user.email?.split("@")[0] ?? "usuário"}
+          onUploadDocument={handleUploadDocument}
           onSave={handleOnboardingSave}
         />
         {error ? <p className="status-error">{error}</p> : null}

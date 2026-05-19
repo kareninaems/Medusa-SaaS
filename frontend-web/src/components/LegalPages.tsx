@@ -60,39 +60,45 @@ export function TermsPage() {
         segurança, ou uso para orientação médica/diagnóstica indevida.
       </p>
 
-      <h3>4. Conta e credenciais</h3>
+      <h3>4. Faixa etária (18+)</h3>
+      <p>
+        A Medusa é destinada apenas a pessoas com 18 anos ou mais. Menores de idade não devem criar conta ou usar o
+        serviço sem autorização e supervisão de responsável legal. Para este MVP/beta fechado, o acesso está restrito a 18+.
+      </p>
+
+      <h3>5. Conta e credenciais</h3>
       <p>
         Você é responsável por manter e-mail/senha em segurança e por atividades realizadas na sua conta.
       </p>
 
-      <h3>5. Limitações do serviço</h3>
+      <h3>6. Limitações do serviço</h3>
       <p>
         Respostas de IA podem conter erros, imprecisão ou omissões. Nenhuma resposta deve ser interpretada como ordem,
         prescrição, diagnóstico ou decisão obrigatória.
       </p>
 
-      <h3>6. Propriedade intelectual</h3>
+      <h3>7. Propriedade intelectual</h3>
       <p>
         Marca, estrutura e conteúdo-base da Medusa pertencem à Medusa Labs. Conteúdos pessoais do usuário permanecem sob
         sua titularidade, observados os limites técnicos e legais.
       </p>
 
-      <h3>7. Cancelamento e exclusão de conta</h3>
+      <h3>8. Cancelamento e exclusão de conta</h3>
       <p>
         Você pode solicitar exclusão de conta/dados. A Medusa pode suspender contas em caso de abuso ou risco técnico.
       </p>
 
-      <h3>8. Limitação de responsabilidade</h3>
+      <h3>9. Limitação de responsabilidade</h3>
       <p>
         A Medusa Labs não assume responsabilidade por decisões tomadas pelo usuário com base nas sugestões da IA.
       </p>
 
-      <h3>9. Atualizações dos termos</h3>
+      <h3>10. Atualizações dos termos</h3>
       <p>
         Estes termos podem ser atualizados. A versão vigente será indicada no produto e no histórico de consentimento.
       </p>
 
-      <h3>10. Contato</h3>
+      <h3>11. Contato</h3>
       <p>
         Jurídico: <a href="mailto:legal@medusa.app">legal@medusa.app</a>
       </p>

@@ -467,6 +467,16 @@ select:focus-visible {
   gap: 12px;
 }
 
+.onboarding-upload-box {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--surface-elevated);
+}
+
 .wizard-actions {
   display: flex;
   justify-content: space-between;
