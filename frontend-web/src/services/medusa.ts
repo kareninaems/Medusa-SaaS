@@ -1,5 +1,6 @@
 import type { Session } from "@supabase/supabase-js";
 
+import { PRIVACY_VERSION, TERMS_VERSION } from "../constants/legal";
 import { supabase } from "../lib/supabase";
 import type {
   ClaudeProxyPayload,
@@ -9,14 +10,18 @@ import type {
   Message,
   Profile,
   ProfileOnboarding,
+  UserConsent,
 } from "../types/medusa";
 
 const functionName = import.meta.env.VITE_SUPABASE_FUNCTION_NAME || "claude-proxy";
 
+const PROFILE_COLUMNS =
+  "id, created_at, display_name, onboarding, energy_default, terms_accepted_at, privacy_accepted_at, terms_version, privacy_version";
+
 export async function ensureProfile(session: Session): Promise<Profile> {
   const { data: existing, error: fetchError } = await supabase
     .from("profiles")
-    .select("id, created_at, display_name, onboarding, energy_default")
+    .select(PROFILE_COLUMNS)
     .eq("id", session.user.id)
     .maybeSingle();
 
@@ -31,8 +36,12 @@ export async function ensureProfile(session: Session): Promise<Profile> {
       display_name: defaultName,
       onboarding: null,
       energy_default: null,
+      terms_accepted_at: null,
+      privacy_accepted_at: null,
+      terms_version: null,
+      privacy_version: null,
     })
-    .select("id, created_at, display_name, onboarding, energy_default")
+    .select(PROFILE_COLUMNS)
     .single();
 
   if (error) throw error;
@@ -48,7 +57,7 @@ export async function updateOnboarding(
     .from("profiles")
     .update({ display_name: displayName, onboarding })
     .eq("id", userId)
-    .select("id, created_at, display_name, onboarding, energy_default")
+    .select(PROFILE_COLUMNS)
     .single();
 
   if (error) throw error;
@@ -192,6 +201,45 @@ export async function resetUserData(userId: string): Promise<void> {
     .update({ onboarding: null, energy_default: null })
     .eq("id", userId);
   if (resetProfileError) throw resetProfileError;
+}
+
+export async function recordUserConsent(input: {
+  userId: string;
+  userAgent?: string;
+}): Promise<UserConsent> {
+  const acceptedAt = new Date().toISOString();
+
+  const { error: profileError } = await supabase
+    .from("profiles")
+    .update({
+      terms_accepted_at: acceptedAt,
+      privacy_accepted_at: acceptedAt,
+      terms_version: TERMS_VERSION,
+      privacy_version: PRIVACY_VERSION,
+    })
+    .eq("id", input.userId);
+
+  if (profileError) throw profileError;
+
+  const { data, error } = await supabase
+    .from("user_consents")
+    .insert({
+      user_id: input.userId,
+      terms_version: TERMS_VERSION,
+      privacy_version: PRIVACY_VERSION,
+      accepted_at: acceptedAt,
+      ip_hash: null,
+      user_agent: input.userAgent ?? null,
+    })
+    .select("id, user_id, terms_version, privacy_version, accepted_at, ip_hash, user_agent")
+    .single();
+
+  if (error) throw error;
+  return data as UserConsent;
+}
+
+export function needsConsent(profile: Profile): boolean {
+  return !profile.terms_accepted_at || !profile.privacy_accepted_at;
 }
 
 export function parseLinesToArray(value: string): string[] {

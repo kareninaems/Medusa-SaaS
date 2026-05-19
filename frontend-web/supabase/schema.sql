@@ -8,8 +8,17 @@ create table if not exists public.profiles (
   created_at timestamptz not null default now(),
   display_name text,
   onboarding jsonb,
-  energy_default int check (energy_default between 1 and 3)
+  energy_default int check (energy_default between 1 and 3),
+  terms_accepted_at timestamptz,
+  privacy_accepted_at timestamptz,
+  terms_version text,
+  privacy_version text
 );
+
+alter table public.profiles add column if not exists terms_accepted_at timestamptz;
+alter table public.profiles add column if not exists privacy_accepted_at timestamptz;
+alter table public.profiles add column if not exists terms_version text;
+alter table public.profiles add column if not exists privacy_version text;
 
 create table if not exists public.conversations (
   id uuid primary key default gen_random_uuid(),
@@ -36,9 +45,11 @@ create table if not exists public.memories (
   triggers jsonb not null default '[]'::jsonb,
   worked jsonb not null default '[]'::jsonb,
   didnt_work jsonb not null default '[]'::jsonb,
-  context jsonb not null default '[]'::jsonb,
+  context jsonb not null default '{}'::jsonb,
   updated_at timestamptz not null default now()
 );
+
+alter table public.memories alter column context set default '{}'::jsonb;
 
 create table if not exists public.audit_logs (
   id uuid primary key default gen_random_uuid(),
@@ -52,23 +63,36 @@ create table if not exists public.audit_logs (
   cache_read_tokens int
 );
 
+create table if not exists public.user_consents (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  terms_version text not null,
+  privacy_version text not null,
+  accepted_at timestamptz not null default now(),
+  ip_hash text,
+  user_agent text
+);
+
 create index if not exists conversations_user_id_idx on public.conversations(user_id);
 create index if not exists messages_conversation_id_idx on public.messages(conversation_id);
 create index if not exists messages_user_id_idx on public.messages(user_id);
 create index if not exists memories_user_id_idx on public.memories(user_id);
 create index if not exists audit_logs_user_id_idx on public.audit_logs(user_id);
+create index if not exists user_consents_user_id_idx on public.user_consents(user_id);
 
 alter table public.profiles enable row level security;
 alter table public.conversations enable row level security;
 alter table public.messages enable row level security;
 alter table public.memories enable row level security;
 alter table public.audit_logs enable row level security;
+alter table public.user_consents enable row level security;
 
 grant select, insert, update on public.profiles to authenticated;
 grant select, insert, update, delete on public.conversations to authenticated;
 grant select, insert, update, delete on public.messages to authenticated;
 grant select, insert, update, delete on public.memories to authenticated;
 grant select on public.audit_logs to authenticated;
+grant select, insert on public.user_consents to authenticated;
 
 drop policy if exists profiles_select_own on public.profiles;
 create policy profiles_select_own
@@ -127,3 +151,15 @@ create policy audit_logs_select_own
   on public.audit_logs
   for select
   using (user_id = auth.uid());
+
+drop policy if exists user_consents_select_own on public.user_consents;
+create policy user_consents_select_own
+  on public.user_consents
+  for select
+  using (user_id = auth.uid());
+
+drop policy if exists user_consents_insert_own on public.user_consents;
+create policy user_consents_insert_own
+  on public.user_consents
+  for insert
+  with check (user_id = auth.uid());

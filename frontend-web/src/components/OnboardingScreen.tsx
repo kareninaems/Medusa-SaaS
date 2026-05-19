@@ -16,6 +16,11 @@ export function OnboardingScreen({ loading = false, defaultName, onSave }: Onboa
   const [educationLevel, setEducationLevel] = useState("graduação");
   const [profession, setProfession] = useState("");
   const [constraints, setConstraints] = useState("");
+  const [blockers, setBlockers] = useState("");
+  const [lowEnergyWorks, setLowEnergyWorks] = useState("");
+  const [guidanceStyle, setGuidanceStyle] = useState("direta");
+  const [knownPatterns, setKnownPatterns] = useState("");
+  const [neverDo, setNeverDo] = useState("");
   const [days, setDays] = useState<string[]>(["segunda", "terça", "quarta", "quinta", "sexta"]);
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("18:00");
@@ -47,6 +52,10 @@ export function OnboardingScreen({ loading = false, defaultName, onSave }: Onboa
       setError("Selecione ao menos um dia da rotina principal.");
       return;
     }
+    if (!blockers.trim() || !lowEnergyWorks.trim() || !knownPatterns.trim() || !neverDo.trim()) {
+      setError("Preencha os campos cognitivos para concluir o onboarding.");
+      return;
+    }
 
     await onSave({
       displayName: displayName.trim() || defaultName,
@@ -54,6 +63,11 @@ export function OnboardingScreen({ loading = false, defaultName, onSave }: Onboa
         education_level: educationLevel,
         profession: profession.trim(),
         constraints: constraints.trim(),
+        blockers: blockers.trim(),
+        low_energy_works: lowEnergyWorks.trim(),
+        guidance_style: guidanceStyle,
+        known_patterns: knownPatterns.trim(),
+        never_do: neverDo.trim(),
         routine: {
           days,
           start_time: startTime,
@@ -176,6 +190,60 @@ export function OnboardingScreen({ loading = false, defaultName, onSave }: Onboa
             value={constraints}
             onChange={(event) => setConstraints(event.target.value)}
             placeholder="Ex: filhos, plantões, sono irregular, deslocamento, estudo, saúde..."
+          />
+        </label>
+
+        <label className="field">
+          <span>O que costuma te travar?</span>
+          <textarea
+            className="input textarea"
+            value={blockers}
+            onChange={(event) => setBlockers(event.target.value)}
+            placeholder="Ex: sobrecarga, perfeccionismo, medo de falhar..."
+          />
+        </label>
+
+        <label className="field">
+          <span>O que costuma funcionar quando você está sem energia?</span>
+          <textarea
+            className="input textarea"
+            value={lowEnergyWorks}
+            onChange={(event) => setLowEnergyWorks(event.target.value)}
+            placeholder="Ex: tarefas curtas, pausa de 10 minutos, checklist mínimo..."
+          />
+        </label>
+
+        <label className="field">
+          <span>Como prefere receber orientação?</span>
+          <select
+            className="input"
+            value={guidanceStyle}
+            onChange={(event) => setGuidanceStyle(event.target.value)}
+          >
+            <option value="direta">direta</option>
+            <option value="acolhedora">acolhedora</option>
+            <option value="técnica">técnica</option>
+            <option value="mínima">mínima</option>
+          </select>
+        </label>
+
+        <label className="field">
+          <span>Quais padrões você já reconhece em si?</span>
+          <textarea
+            className="input textarea"
+            value={knownPatterns}
+            onChange={(event) => setKnownPatterns(event.target.value)}
+            placeholder="Ex: procrastinação sob ansiedade, impulso de abraçar tudo..."
+          />
+        </label>
+
+        <label className="field">
+          <span>O que a Medusa nunca deve fazer nas respostas?</span>
+          <textarea
+            className="input textarea"
+            value={neverDo}
+            onChange={(event) => setNeverDo(event.target.value)}
+            placeholder="Ex: tom agressivo, conselho médico, culpa, ordens..."
           />
         </label>
 

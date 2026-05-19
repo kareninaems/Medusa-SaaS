@@ -16,10 +16,10 @@ Versão web incremental da Medusa, mantendo identidade do produto:
 ```bash
 cd /app/frontend-web
 npm install
-npm run dev
+npm run dev -- --host 0.0.0.0 --port 3000
 ```
 
-Abre em `http://localhost:5173`.
+Abre em `http://localhost:3000`.
 
 ## 2) Variáveis de ambiente (frontend)
 
@@ -29,6 +29,8 @@ Arquivo: `.env`
 VITE_SUPABASE_URL=https://wdjaggnxdbbovupfzslj.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_ffwKLfMycG2gO0UzXIm9tg_c64pQJRn
 VITE_SUPABASE_FUNCTION_NAME=claude-proxy
+VITE_TERMS_VERSION=2026-05
+VITE_PRIVACY_VERSION=2026-05
 ```
 
 > Importante: usar apenas key publishable no frontend.
@@ -77,11 +79,14 @@ Troca de modelo sem alterar código:
    - `profession`
    - `routine` (days/start_time/end_time/variable_schedule/notes)
    - `constraints`
+   - campos cognitivos/emocionais (`blockers`, `low_energy_works`, `guidance_style`, `known_patterns`, `never_do`)
 3. Check-in de energia 1/2/3
 4. Chat com Medusa via `claude-proxy`
 5. Mensagens salvas por usuário
 6. Memória inicial editável (`patterns`, `triggers`, `worked`, `didnt_work`, `context`)
 7. Setup com reset de dados, status da conta e logout
+8. Páginas legais: `/terms`, `/privacy`, `/crisis`
+9. Aceite obrigatório de termos/privacidade no cadastro + registro em `profiles` e `user_consents`
 
 ## 6) Segurança aplicada
 

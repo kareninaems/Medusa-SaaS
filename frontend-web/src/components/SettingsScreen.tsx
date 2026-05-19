@@ -1,4 +1,5 @@
 import type { Session } from "@supabase/supabase-js";
+import { Link } from "react-router-dom";
 
 interface SettingsScreenProps {
   session: Session;
@@ -20,6 +21,17 @@ export function SettingsScreen({
       <p className="muted">Status: autenticada</p>
 
       <div className="stack">
+        <div className="mode-row">
+          <Link className="chip" to="/terms">
+            Termos
+          </Link>
+          <Link className="chip" to="/privacy">
+            Privacidade
+          </Link>
+          <Link className="chip" to="/crisis">
+            Crise
+          </Link>
+        </div>
         <button className="ghost-btn" onClick={onReset} disabled={resetting}>
           {resetting ? "Resetando dados..." : "Resetar dados do produto"}
         </button>

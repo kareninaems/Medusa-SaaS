@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
+import { Route, Routes, Link } from "react-router-dom";
 
 import { AuthScreen } from "./components/AuthScreen";
 import { ChatScreen } from "./components/ChatScreen";
 import { CheckInScreen } from "./components/CheckInScreen";
+import { CrisisPage, PrivacyPage, TermsPage } from "./components/LegalPages";
 import { MemoryScreen } from "./components/MemoryScreen";
 import { OnboardingScreen } from "./components/OnboardingScreen";
 import { SettingsScreen } from "./components/SettingsScreen";
+import { PENDING_CONSENT_KEY, PRIVACY_VERSION, TERMS_VERSION } from "./constants/legal";
 import { supabase } from "./lib/supabase";
 import {
   callClaudeProxy,
@@ -15,6 +18,8 @@ import {
   getMemory,
   getMessages,
   insertMessage,
+  needsConsent,
+  recordUserConsent,
   resetUserData,
   updateEnergy,
   updateOnboarding,
@@ -31,7 +36,43 @@ import type {
 
 type AppTab = "chat" | "memory" | "setup";
 
-function App() {
+function ConsentGate({
+  loading,
+  onAccept,
+}: {
+  loading: boolean;
+  onAccept: () => Promise<void>;
+}) {
+  const [checked, setChecked] = useState(false);
+
+  return (
+    <div className="screen compact">
+      <p className="eyebrow">CONSENTIMENTO</p>
+      <h2>Confirme os documentos legais para continuar</h2>
+      <p className="muted">
+        Versões atuais: Termos {TERMS_VERSION} / Privacidade {PRIVACY_VERSION}
+      </p>
+
+      <label className="check-row">
+        <input type="checkbox" checked={checked} onChange={(event) => setChecked(event.target.checked)} />
+        <span>
+          Li e aceito os <Link to="/terms">Termos de Uso</Link> e a{" "}
+          <Link to="/privacy">Política de Privacidade</Link>.
+        </span>
+      </label>
+
+      <button className="primary-btn" disabled={!checked || loading} onClick={onAccept}>
+        {loading ? "Registrando aceite..." : "Aceitar e continuar"}
+      </button>
+
+      <p className="muted">
+        Este documento é um modelo inicial e deve ser revisado por profissional jurídico antes do lançamento público.
+      </p>
+    </div>
+  );
+}
+
+function ProductApp() {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [conversation, setConversation] = useState<Conversation | null>(null);
@@ -46,11 +87,22 @@ function App() {
   const [sendingChat, setSendingChat] = useState(false);
   const [savingMemory, setSavingMemory] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [savingConsent, setSavingConsent] = useState(false);
   const [error, setError] = useState("");
 
   const onboardingMissing = useMemo(() => {
     if (!profile?.onboarding) return true;
-    return !profile.onboarding.education_level || !profile.onboarding.profession || !profile.onboarding.routine;
+    return (
+      !profile.onboarding.education_level ||
+      !profile.onboarding.profession ||
+      !profile.onboarding.constraints ||
+      !profile.onboarding.blockers ||
+      !profile.onboarding.low_energy_works ||
+      !profile.onboarding.guidance_style ||
+      !profile.onboarding.known_patterns ||
+      !profile.onboarding.never_do ||
+      !profile.onboarding.routine
+    );
   }, [profile]);
 
   const currentEnergy = checkInEnergy ?? profile?.energy_default ?? 2;
@@ -59,7 +111,17 @@ function App() {
     setLoading(true);
     setError("");
     try {
-      const ensuredProfile = await ensureProfile(activeSession);
+      let ensuredProfile = await ensureProfile(activeSession);
+      const pendingConsent = localStorage.getItem(PENDING_CONSENT_KEY) === "true";
+      if (needsConsent(ensuredProfile) && pendingConsent) {
+        await recordUserConsent({
+          userId: activeSession.user.id,
+          userAgent: navigator.userAgent,
+        });
+        localStorage.removeItem(PENDING_CONSENT_KEY);
+        ensuredProfile = await ensureProfile(activeSession);
+      }
+
       const activeConversation = await ensureConversation(activeSession.user.id);
       const [loadedMessages, loadedMemory] = await Promise.all([
         getMessages(activeConversation.id),
@@ -238,6 +300,22 @@ function App() {
     await supabase.auth.signOut();
   };
 
+  const handleAcceptConsent = async () => {
+    if (!session) return;
+    setSavingConsent(true);
+    setError("");
+    try {
+      await recordUserConsent({ userId: session.user.id, userAgent: navigator.userAgent });
+      localStorage.removeItem(PENDING_CONSENT_KEY);
+      const refreshed = await ensureProfile(session);
+      setProfile(refreshed);
+    } catch (consentError) {
+      setError(consentError instanceof Error ? consentError.message : "Falha ao registrar consentimento");
+    } finally {
+      setSavingConsent(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="app-shell">
@@ -250,7 +328,24 @@ function App() {
     return <AuthScreen onAuthDone={async () => undefined} />;
   }
 
-  if (!profile || onboardingMissing) {
+  if (!profile) {
+    return (
+      <div className="app-shell">
+        <p className="muted">Carregando perfil...</p>
+      </div>
+    );
+  }
+
+  if (needsConsent(profile)) {
+    return (
+      <div className="app-shell">
+        <ConsentGate loading={savingConsent} onAccept={handleAcceptConsent} />
+        {error ? <p className="status-error">{error}</p> : null}
+      </div>
+    );
+  }
+
+  if (onboardingMissing) {
     return (
       <div className="app-shell">
         <OnboardingScreen
@@ -313,6 +408,18 @@ function App() {
         <SettingsScreen session={session} resetting={resetting} onReset={handleReset} onSignOut={handleSignOut} />
       ) : null}
     </div>
+  );
+}
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<ProductApp />} />
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/crisis" element={<CrisisPage />} />
+      <Route path="*" element={<ProductApp />} />
+    </Routes>
   );
 }
 

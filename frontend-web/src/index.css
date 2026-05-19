@@ -378,6 +378,42 @@ h3 {
   background: #132317;
 }
 
+.legal-shell {
+  padding-top: 26px;
+  padding-bottom: 26px;
+}
+
+.legal-copy {
+  gap: 10px;
+}
+
+.legal-copy p,
+.legal-copy li {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.legal-copy ul {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+}
+
+a {
+  color: #93b2ff;
+  text-decoration: underline;
+}
+
+blockquote {
+  border-left: 3px solid var(--accent);
+  margin: 0;
+  padding: 8px 12px;
+  color: var(--text-soft);
+  background: #0f1020;
+}
+
 @media (max-width: 760px) {
   .app-shell {
     padding: 14px;

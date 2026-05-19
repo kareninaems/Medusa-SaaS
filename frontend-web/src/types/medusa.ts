@@ -5,6 +5,11 @@ export interface ProfileOnboarding {
   education_level: string;
   profession: string;
   constraints: string;
+  blockers: string;
+  low_energy_works: string;
+  guidance_style: string;
+  known_patterns: string;
+  never_do: string;
   routine: {
     days: string[];
     start_time: string;
@@ -20,6 +25,20 @@ export interface Profile {
   display_name: string | null;
   onboarding: ProfileOnboarding | null;
   energy_default: EnergyLevel | null;
+  terms_accepted_at: string | null;
+  privacy_accepted_at: string | null;
+  terms_version: string | null;
+  privacy_version: string | null;
+}
+
+export interface UserConsent {
+  id: string;
+  user_id: string;
+  terms_version: string;
+  privacy_version: string;
+  accepted_at: string;
+  ip_hash: string | null;
+  user_agent: string | null;
 }
 
 export interface Conversation {
@@ -47,7 +66,7 @@ export interface MemoryRow {
   triggers: string[];
   worked: string[];
   didnt_work: string[];
-  context: string[];
+  context: string[] | Record<string, unknown>;
   updated_at: string;
 }
 

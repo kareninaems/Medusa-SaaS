@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 
+import { PENDING_CONSENT_KEY } from "../constants/legal";
 import { supabase } from "../lib/supabase";
 
 interface AuthScreenProps {
@@ -14,6 +15,7 @@ export function AuthScreen({ onAuthDone }: AuthScreenProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+  const [acceptedLegal, setAcceptedLegal] = useState(false);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -23,11 +25,17 @@ export function AuthScreen({ onAuthDone }: AuthScreenProps) {
 
     try {
       if (mode === "register") {
+        if (!acceptedLegal) {
+          setError("Você precisa aceitar os Termos de Uso e a Política de Privacidade.");
+          return;
+        }
+
         const { data, error: registerError } = await supabase.auth.signUp({
           email: email.trim(),
           password,
         });
         if (registerError) throw registerError;
+        localStorage.setItem(PENDING_CONSENT_KEY, "true");
         if (!data.session) {
           setInfo("Conta criada. Verifique seu e-mail para confirmar.");
         } else {
@@ -90,6 +98,21 @@ export function AuthScreen({ onAuthDone }: AuthScreenProps) {
             onChange={(event) => setPassword(event.target.value)}
             required
           />
+
+          {mode === "register" ? (
+            <label className="check-row">
+              <input
+                type="checkbox"
+                checked={acceptedLegal}
+                onChange={(event) => setAcceptedLegal(event.target.checked)}
+                required
+              />
+              <span>
+                Li e aceito os <a href="/terms">Termos de Uso</a> e a{" "}
+                <a href="/privacy">Política de Privacidade</a>.
+              </span>
+            </label>
+          ) : null}
 
           <button className="primary-btn" type="submit" disabled={loading}>
             {loading ? "Aguarde..." : mode === "login" ? "Entrar na Medusa" : "Criar conta"}

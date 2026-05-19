@@ -13,6 +13,11 @@ interface ClaudeProxyPayload {
     education_level?: string;
     profession?: string;
     constraints?: string;
+    blockers?: string;
+    low_energy_works?: string;
+    guidance_style?: string;
+    known_patterns?: string;
+    never_do?: string;
     routine?: {
       days?: string[];
       start_time?: string;
@@ -54,6 +59,17 @@ function buildContext(payload: ClaudeProxyPayload): string {
   const routine = onboarding?.routine;
   const memory = payload.memory;
 
+  const printJson = (value: unknown): string => {
+    if (!value) return "vazio";
+    if (Array.isArray(value)) return value.join(" | ") || "vazio";
+    if (typeof value === "string") return value;
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return "vazio";
+    }
+  };
+
   return `
 ## CONTEXTO DO USUÁRIO
 Energia atual: ${payload.energy}
@@ -62,6 +78,11 @@ Modo atual: ${payload.mode}
 Escolaridade: ${onboarding?.education_level || "não informado"}
 Profissão/Ocupação: ${onboarding?.profession || "não informado"}
 Restrições: ${onboarding?.constraints || "não informado"}
+O que trava: ${onboarding?.blockers || "não informado"}
+O que funciona sem energia: ${onboarding?.low_energy_works || "não informado"}
+Estilo de orientação preferido: ${onboarding?.guidance_style || "não informado"}
+Padrões já reconhecidos: ${onboarding?.known_patterns || "não informado"}
+Limites da resposta (nunca fazer): ${onboarding?.never_do || "não informado"}
 
 Rotina:
 - Dias principais: ${(routine?.days || []).join(", ") || "não informado"}
@@ -71,15 +92,16 @@ Rotina:
 - Blocos difíceis: ${routine?.notes || "não informado"}
 
 Memória:
-- Patterns: ${(memory?.patterns || []).join(" | ") || "vazio"}
-- Triggers: ${(memory?.triggers || []).join(" | ") || "vazio"}
-- Worked: ${(memory?.worked || []).join(" | ") || "vazio"}
-- Didnt_work: ${(memory?.didnt_work || []).join(" | ") || "vazio"}
-- Context: ${(memory?.context || []).join(" | ") || "vazio"}
+- Patterns: ${printJson(memory?.patterns)}
+- Triggers: ${printJson(memory?.triggers)}
+- Worked: ${printJson(memory?.worked)}
+- Didnt_work: ${printJson(memory?.didnt_work)}
+- Context: ${printJson(memory?.context)}
 
 ## INSTRUÇÃO ADICIONAL
 Use escolaridade, profissão, rotina e restrições para ajustar densidade da linguagem,
 timing das sugestões e realismo dos passos.
+Nunca decida pela pessoa. Sugira; o usuário decide.
 `.trim();
 }
 

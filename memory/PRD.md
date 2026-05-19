@@ -78,6 +78,21 @@ Transformar o Medusa em SaaS B2C individual com autenticação real, onboarding 
 - Criado system prompt separado em `/app/frontend-web/supabase/functions/claude-proxy/system_prompt.ts` com seções de identidade da Medusa.
 - README de execução local e setup completo em `/app/frontend-web/README.md`.
 
+### 2026-05-19 — Atualização LGPD/Termos + onboarding ampliado
+- Onboarding ampliado com novos campos salvos em `profiles.onboarding`:
+  - `education_level`, `profession`, `routine`, `constraints`
+  - `blockers`, `low_energy_works`, `guidance_style`, `known_patterns`, `never_do`
+- Prompt/contexto da Edge Function atualizado para considerar os campos acima e reforçar: Medusa sugere, usuário decide.
+- Schema atualizado com colunas de consentimento em `profiles`:
+  - `terms_accepted_at`, `privacy_accepted_at`, `terms_version`, `privacy_version`
+- Nova tabela `user_consents` com RLS para histórico de aceite.
+- Cadastro agora exige checkbox obrigatório de aceite legal e grava consentimento em `profiles` + `user_consents`.
+- Páginas legais implementadas:
+  - `/terms` (epígrafe IBM + limites de responsabilidade)
+  - `/privacy` (LGPD + ANPD + tratamento de dados)
+  - `/crisis` (CVV 188, SAMU 192, Polícia 190)
+- Validação local realizada em `http://localhost:3000` com screenshots de login e páginas legais.
+
 ## Status Atual por Fase
 - **Fase 1 (Foundation SaaS):** concluída
 - **Fase 2 (Onboarding + memória individual):** concluída no MVP

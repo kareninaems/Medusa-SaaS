@@ -23,11 +23,12 @@ export function MemoryScreen({ memory, saving = false, onSave }: MemoryScreenPro
   const [context, setContext] = useState("");
 
   useEffect(() => {
+    const contextLines = Array.isArray(memory?.context) ? memory?.context : [];
     setPatterns(memory?.patterns?.join("\n") ?? "");
     setTriggers(memory?.triggers?.join("\n") ?? "");
     setWorked(memory?.worked?.join("\n") ?? "");
     setDidntWork(memory?.didnt_work?.join("\n") ?? "");
-    setContext(memory?.context?.join("\n") ?? "");
+    setContext(contextLines.join("\n"));
   }, [memory]);
 
   const toArray = (value: string) =>
