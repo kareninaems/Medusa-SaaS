@@ -53,6 +53,31 @@ Transformar o Medusa em SaaS B2C individual com autenticação real, onboarding 
 - Sessão persistente implementada com `@/src/utils/storage` (SecureStore/AsyncStorage wrapper existente).
 - Permissões mobile adicionadas no `app.json` para voz premium (`RECORD_AUDIO`, `NSMicrophoneUsageDescription`).
 
+### 2026-05-19 — Medusa SaaS Web (incremental, sem destruir base atual)
+- Criado novo projeto web isolado em `/app/frontend-web` preservando `/app/frontend` intacto.
+- Implementado MVP web com fluxo de produto (sem landing de marketing):
+  - Login/cadastro Supabase Auth (email + senha)
+  - Onboarding com campos:
+    - `education_level`
+    - `profession`
+    - `routine` (`days`, `start_time`, `end_time`, `variable_schedule`, `notes`)
+    - `constraints`
+  - Check-in de energia 1/2/3 antes do chat
+  - Chat Medusa com modos `ACAO`, `FOCO`, `PROCESSO`, `TRAVA`
+  - Placeholder de voz no composer (sem implementação de voz ainda)
+  - Tela de memória (`patterns`, `triggers`, `worked`, `didnt_work`, `context`)
+  - Setup/configurações (status de conta, reset de dados, logout)
+- Implementado persistência por usuário no Supabase:
+  - `profiles`, `conversations`, `messages`, `memories`, `audit_logs`
+- Criado schema SQL + RLS em `/app/frontend-web/supabase/schema.sql` para isolamento multiusuário.
+- Criada Edge Function server-side `claude-proxy` em `/app/frontend-web/supabase/functions/claude-proxy/`:
+  - usa `ANTHROPIC_API_KEY` apenas em secret/env server-side
+  - `ANTHROPIC_MODEL` configurável por env (default Haiku 4.5)
+  - suporta prompt caching quando habilitado por env
+  - registra `audit_logs` com status e tokens sem armazenar conteúdo sensível
+- Criado system prompt separado em `/app/frontend-web/supabase/functions/claude-proxy/system_prompt.ts` com seções de identidade da Medusa.
+- README de execução local e setup completo em `/app/frontend-web/README.md`.
+
 ## Status Atual por Fase
 - **Fase 1 (Foundation SaaS):** concluída
 - **Fase 2 (Onboarding + memória individual):** concluída no MVP
@@ -63,14 +88,14 @@ Transformar o Medusa em SaaS B2C individual com autenticação real, onboarding 
 ## Backlog Priorizado
 
 ### P0 (próximo passo imediato)
-1. Configurar `STRIPE_SECRET_KEY`, `STRIPE_PRICE_PAID`, `STRIPE_WEBHOOK_SECRET` para ativar checkout real.
-2. Conectar webhook Stripe em ambiente externo e validar ciclo completo (active/past_due/canceled).
-3. Substituir reset de senha por e-mail transacional (Resend/SendGrid) mantendo UX atual.
+1. Executar `/app/frontend-web/supabase/schema.sql` no projeto Supabase e validar RLS em produção.
+2. Publicar `claude-proxy` e configurar secrets (`ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `ANTHROPIC_PROMPT_CACHING`).
+3. Validar fluxo real fim-a-fim (cadastro → onboarding → check-in → chat → memória) com dados reais.
 
 ### P1
-1. Implementar voz real (captura + STT/TTS) para o recurso premium.
-2. Melhorar política de memória (tipagem automática, score dinâmico, retenção inteligente).
-3. Expandir dashboard admin com retenção, churn e conversão por período.
+1. Implementar voz real no chat (captura + STT/TTS) mantendo identidade da Medusa.
+2. Implementar consolidação automática de memória com função dedicada.
+3. Integrar calendário para sincronização de energia, rotina e agenda.
 
 ### P2
 1. Política de retenção avançada + anonimização.
@@ -78,7 +103,7 @@ Transformar o Medusa em SaaS B2C individual com autenticação real, onboarding 
 3. Preparar estrutura para futura expansão family plan/B2B.
 
 ## Next Tasks List
-1. Ativar Stripe em produção de teste (chaves + webhook).
-2. Validar upgrade/paywall end-to-end no app.
-3. Integrar e-mail de recuperação e notificações de billing.
-4. Evoluir voz premium para experiência completa (gravação + resposta falada).
+1. Rodar SQL de schema e políticas no Supabase alvo.
+2. Deploy da Edge Function `claude-proxy` com secrets.
+3. Testar onboarding novo (escolaridade/profissão/rotina/restrições) impactando respostas do Claude.
+4. Evoluir para memória automática e integração de calendário.

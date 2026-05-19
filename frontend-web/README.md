@@ -1,73 +1,91 @@
-# React + TypeScript + Vite
+# Medusa SaaS Web (MVP)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Versão web incremental da Medusa, mantendo identidade do produto:
+- visual escuro, simples, direto
+- primeira experiência: onboarding → check-in energia → chat
+- sem interface genérica de GPT/Gemini
 
-Currently, two official plugins are available:
+## Stack
+- React + TypeScript + Vite
+- Supabase Auth (email/senha)
+- Supabase Postgres + RLS
+- Supabase Edge Function (`claude-proxy`) chamando Claude server-side
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 1) Rodar frontend local
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+cd /app/frontend-web
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Abre em `http://localhost:5173`.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## 2) Variáveis de ambiente (frontend)
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Arquivo: `.env`
+
+```env
+VITE_SUPABASE_URL=https://wdjaggnxdbbovupfzslj.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_ffwKLfMycG2gO0UzXIm9tg_c64pQJRn
+VITE_SUPABASE_FUNCTION_NAME=claude-proxy
 ```
+
+> Importante: usar apenas key publishable no frontend.
+
+## 3) Criar schema e RLS no Supabase
+
+No SQL Editor do Supabase, execute:
+
+`/app/frontend-web/supabase/schema.sql`
+
+Isso cria as tabelas:
+- `profiles`
+- `conversations`
+- `messages`
+- `memories`
+- `audit_logs`
+
+E ativa RLS para isolamento por usuário.
+
+## 4) Deploy da Edge Function Claude
+
+Pré-requisito: Supabase CLI autenticada no projeto `wdjaggnxdbbovupfzslj`.
+
+```bash
+cd /app/frontend-web
+supabase link --project-ref wdjaggnxdbbovupfzslj
+supabase functions deploy claude-proxy
+```
+
+### Secrets da função (server-side)
+
+```bash
+supabase secrets set ANTHROPIC_API_KEY="<SUA_CHAVE_ANTHROPIC>"
+supabase secrets set ANTHROPIC_MODEL="claude-haiku-4-5-20251001"
+supabase secrets set ANTHROPIC_PROMPT_CACHING="true"
+```
+
+Troca de modelo sem alterar código:
+- exemplo Sonnet depois: `ANTHROPIC_MODEL=claude-sonnet-4-5-20250929`
+
+## 5) Fluxo funcional do MVP
+
+1. Login/cadastro via Supabase Auth
+2. Onboarding cognitivo com:
+   - `education_level`
+   - `profession`
+   - `routine` (days/start_time/end_time/variable_schedule/notes)
+   - `constraints`
+3. Check-in de energia 1/2/3
+4. Chat com Medusa via `claude-proxy`
+5. Mensagens salvas por usuário
+6. Memória inicial editável (`patterns`, `triggers`, `worked`, `didnt_work`, `context`)
+7. Setup com reset de dados, status da conta e logout
+
+## 6) Segurança aplicada
+
+- RLS habilitado em todas as tabelas principais.
+- Usuário acessa apenas dados próprios.
+- Anthropic API key **não** vai para frontend.
+- `claude-proxy` registra `audit_logs` com tokens e status, sem salvar conteúdo sensível.
