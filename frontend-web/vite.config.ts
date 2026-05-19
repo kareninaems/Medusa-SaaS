@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    allowedHosts: ["cogni-ios.cluster-5.preview.emergentcf.cloud"],
+    host: "0.0.0.0",
+    allowedHosts: true,
   },
 })
