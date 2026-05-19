@@ -34,10 +34,10 @@ function LegalLayout({ title, children }: { title: string; children: ReactNode }
 export function TermsPage() {
   return (
     <LegalLayout title="Termos de Uso">
-      <blockquote>
-        "A computer can never be held accountable — therefore a computer must never make a management decision."<br />
-        IBM — Treinamento Interno, 1979
-      </blockquote>
+      <p>
+        “A computer can never be held accountable — therefore a computer must never make a management decision.” IBM —
+        Treinamento Interno, 1979
+      </p>
       <p>
         Este princípio guia o propósito da Medusa: a responsabilidade pelas decisões da sua vida permanece sempre com você.
       </p>

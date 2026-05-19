@@ -376,7 +376,7 @@ function ProductApp() {
       <header className="top-bar">
         <div className="brand-block">
           <p className="eyebrow">Medusa</p>
-          <h1 className="app-title">Sincronização cognitiva/emocional</h1>
+          <h1 className="app-title">Medusa</h1>
           <p className="muted">Energia atual: {currentEnergy}</p>
         </div>
         <nav className="top-tabs">

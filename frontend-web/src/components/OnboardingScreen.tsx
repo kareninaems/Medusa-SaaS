@@ -272,7 +272,7 @@ export function OnboardingScreen({ loading = false, defaultName, onSave }: Onboa
   };
 
   return (
-    <div className="screen">
+    <div className="screen onboarding-screen">
       <div className="screen-header">
         <p className="eyebrow">Onboarding</p>
         <p className="muted">

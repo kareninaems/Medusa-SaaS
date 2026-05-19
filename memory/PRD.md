@@ -117,6 +117,17 @@ Transformar o Medusa em SaaS B2C individual com autenticação real, onboarding 
 - Páginas legais (`/terms`, `/privacy`, `/crisis`) restilizadas sem alterar conteúdo jurídico.
 - Responsividade validada em mobile `390x844` sem overflow horizontal.
 
+### 2026-05-19 — Ajuste final de direção visual (tema claro suave)
+- Aplicado redesign visual para **papel quente + verde calmo** sem alterar backend/Supabase/RLS/Edge/prompt/lógica.
+- Nova paleta clara aplicada no frontend-web:
+  - fundo `#F4F1EA`
+  - superfícies `#FFFFFF`, `#EEE9DF`, `#FAF8F3`
+  - texto `#1F2428` + tons secundários acessíveis
+  - acento verde calmo (`#4F8A72` com variação AA para botão primário)
+- Chat mantido funcional com Claude real; botão de voz segue placeholder discreto.
+- Fluxos mantidos: login/cadastro, consentimento, onboarding wizard, check-in, chat, setup, termos/privacidade/crise.
+- Contraste validado (WCAG AA) para texto principal/secundário/botões/estados.
+
 ## Status Atual por Fase
 - **Fase 1 (Foundation SaaS):** concluída
 - **Fase 2 (Onboarding + memória individual):** concluída no MVP

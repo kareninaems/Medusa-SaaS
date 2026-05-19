@@ -26,7 +26,7 @@ export function ChatScreen({ messages, sending = false, energy, onSend }: ChatSc
   return (
     <section className="chat-layout" aria-live="polite">
       <header className="chat-header">
-        <h2>Chat da Medusa</h2>
+        <h2>Medusa</h2>
         <p className="muted">Energia {energy}. Resposta objetiva em até 3 passos.</p>
       </header>
 

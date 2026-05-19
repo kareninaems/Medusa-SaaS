@@ -12,7 +12,7 @@ export function CheckInScreen({ loading = false, defaultEnergy, onConfirm }: Che
   const [energy, setEnergy] = useState<EnergyLevel>(defaultEnergy ?? 2);
 
   return (
-    <div className="screen compact">
+    <div className="screen compact checkin-screen">
       <p className="eyebrow">Check-in</p>
       <h2>Energia agora?</h2>
       <p className="muted">Escolha um nível para iniciar o chat.</p>
