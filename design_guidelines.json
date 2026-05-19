@@ -1,0 +1,84 @@
+{
+  "theme": "light",
+  "archetype": "1_organic_earthy",
+  "design_philosophy": "Calm, clean, and premium iOS-first experience. Focuses on minimal cognitive load, soft organic tones, and high-end typography to reflect an advanced, personalized cognitive AI.",
+  "colors": {
+    "background_primary": "#FBFBF9",
+    "background_secondary": "#FFFFFF",
+    "background_tertiary": "#F2F2F0",
+    "text_primary": "#1C1C1A",
+    "text_secondary": "#6B6B66",
+    "primary_brand": "#3A453A",
+    "primary_brand_hover": "#2C352C",
+    "accent": "#D17D5C",
+    "surface_glass": "bg-white/70 backdrop-blur-xl",
+    "border_subtle": "#EBEBE8",
+    "chat_bubble_user": "#3A453A",
+    "chat_bubble_ai": "#F2F2F0",
+    "chat_text_user": "#FFFFFF",
+    "chat_text_ai": "#1C1C1A"
+  },
+  "typography": {
+    "heading_font": "Outfit",
+    "body_font": "Manrope",
+    "h1": "text-4xl sm:text-5xl font-light tracking-tight",
+    "h2": "text-2xl sm:text-3xl font-medium tracking-tight",
+    "h3": "text-xl sm:text-2xl font-medium",
+    "body": "text-base leading-relaxed",
+    "small": "text-sm text-text_secondary",
+    "label": "text-xs uppercase tracking-[0.2em] text-text_secondary"
+  },
+  "layout_spacing": {
+    "container_padding": "p-6 sm:p-8",
+    "section_gap": "gap-8 sm:gap-12",
+    "card_padding": "p-6",
+    "border_radius": {
+      "small": "rounded-md",
+      "medium": "rounded-2xl",
+      "large": "rounded-[32px]",
+      "full": "rounded-full"
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-[#3A453A] text-white rounded-full px-6 py-3 font-medium transition-transform hover:scale-[1.02] active:scale-[0.98]",
+      "secondary": "bg-[#F2F2F0] text-[#1C1C1A] rounded-full px-6 py-3 font-medium transition-transform hover:bg-[#EBEBE8] active:scale-[0.98]",
+      "ghost": "text-[#6B6B66] rounded-full px-6 py-3 font-medium hover:text-[#1C1C1A] hover:bg-[#F2F2F0]/50"
+    },
+    "inputs": {
+      "text": "w-full bg-[#FFFFFF] border border-[#EBEBE8] rounded-2xl px-4 py-3 text-[#1C1C1A] placeholder:text-[#6B6B66] focus:outline-none focus:ring-2 focus:ring-[#3A453A]/20 transition-all",
+      "chat_input": "w-full bg-[#FFFFFF] border border-[#EBEBE8] rounded-full px-5 py-3 pr-12 text-[#1C1C1A] shadow-sm focus:outline-none focus:ring-2 focus:ring-[#3A453A]/20"
+    },
+    "cards": {
+      "default": "bg-[#FFFFFF] border border-[#EBEBE8] rounded-[32px] p-6 shadow-sm",
+      "premium_paywall": "bg-gradient-to-b from-[#FFFFFF] to-[#FBFBF9] border border-[#D17D5C]/30 rounded-[32px] p-8 shadow-md relative overflow-hidden"
+    },
+    "headers": {
+      "sticky_glass": "sticky top-0 z-50 bg-white/70 backdrop-blur-xl border-b border-[#EBEBE8] px-6 py-4 flex items-center justify-between"
+    }
+  },
+  "microinteractions": {
+    "hover_state": "Slight lift (-translate-y-0.5) and shadow increase for cards; background darken for buttons.",
+    "page_transition": "Fade in and slight slide up (opacity 0 to 1, translate-y-4 to 0).",
+    "chat_bubble_enter": "Pop in from bottom with spring physics (scale 0.95 to 1, opacity 0 to 1)."
+  },
+  "icons_and_assets": {
+    "icon_library": "lucide-react",
+    "icon_style": "stroke-width: 1.5, minimal and legible",
+    "images_strategy": "Minimal image usage. Prefer typography, layout, and white space. Use abstract soft shapes for onboarding if needed."
+  },
+  "screens": {
+    "onboarding": "Distraction-free, single question per screen with large elegant typography. Progress indicated by a subtle top bar.",
+    "chat_main": "Clean iOS-like chat interface. Sticky glass header with AI model selector. Bottom input area with voice recording button prominently featured. Messages should have generous padding.",
+    "paywall": "Triggered on voice button click or message limit. Elegant modal sliding from bottom. Focus on value of 'Voice' and 'Infinite Memory'. Use the accent color (#D17D5C) subtly for premium cues.",
+    "profile_memory": "List view of extracted user facts. Cards representing memory chunks. Clean, organized like Apple Settings.",
+    "admin_panel": "Swiss high-contrast data table approach for clarity. Sidebar navigation, dense data tables for users and subscriptions."
+  },
+  "testing": {
+    "rules": "All interactive elements (buttons, inputs, chat bubbles, plan selectors) MUST include `data-testid` using kebab-case role-based naming (e.g., `data-testid=\"chat-send-button\"`)."
+  },
+  "tech_stack_guidelines": {
+    "frontend": "React with .js files (as specified in rules), Tailwind CSS. Avoid complex class manipulations, use template literals or clsx/tailwind-merge.",
+    "state": "Ensure optimistic UI updates for chat interactions to maintain a fast iOS-native feel."
+  }
+}
