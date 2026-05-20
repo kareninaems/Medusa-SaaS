@@ -218,15 +218,20 @@ function ProductApp() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
+    } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
       setSession(nextSession);
+
+      if (event === "TOKEN_REFRESHED") {
+        return;
+      }
+
       if (nextSession) {
         await bootstrap(nextSession);
       } else {
         setProfile(null);
         setConversation(null);
         setMessages([]);
-      setDocuments([]);
+        setDocuments([]);
         setMemory(null);
         setLoading(false);
       }
