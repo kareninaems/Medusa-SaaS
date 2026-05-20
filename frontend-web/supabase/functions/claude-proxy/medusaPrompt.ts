@@ -184,18 +184,81 @@ export function memoryToPrompt(memory: any) {
 export function onboardingToPrompt(onboarding: any) {
   if (!onboarding) return "";
 
+  const asList = (value: unknown) => {
+    if (Array.isArray(value)) return value.filter(Boolean).join(", ");
+    if (typeof value === "string") return value;
+    return "";
+  };
+
+  const profession =
+    onboarding.profession ||
+    onboarding.profession_category ||
+    [onboarding.profession_category, onboarding.profession_other].filter(Boolean).join(" - ");
+
+  const constraints =
+    asList(onboarding.constraints) ||
+    [onboarding.constraints, onboarding.constraints_other].filter(Boolean).join(", ");
+
+  const blockers = asList(onboarding.blockers) || onboarding.blockers || "";
+  const lowEnergy =
+    asList(onboarding.low_energy_works) ||
+    [onboarding.low_energy_works, onboarding.low_energy_works_other].filter(Boolean).join(", ");
+
+  const neverDo = asList(onboarding.never_do) || onboarding.never_do || "";
+  const routine = onboarding.routine || {};
+  const routineText = [
+    Array.isArray(routine.days) ? `dias: ${routine.days.join(", ")}` : "",
+    Array.isArray(routine.periods) ? `periodos: ${routine.periods.join(", ")}` : "",
+    routine.start_time ? `inicio: ${routine.start_time}` : "",
+    routine.end_time ? `fim: ${routine.end_time}` : "",
+    routine.variable_schedule ? "horarios variaveis: sim" : "",
+    routine.notes ? `obs: ${routine.notes}` : "",
+  ]
+    .filter(Boolean)
+    .join(" | ");
+
   return `PERFIL DO USUARIO:
+Como quer ser chamado: ${onboarding.display_name || ""}
+Genero: ${[onboarding.gender, onboarding.gender_other].filter(Boolean).join(" - ")}
 Escolaridade: ${onboarding.education_level || ""}
-Profissao/Ocupacao: ${onboarding.profession || ""}
-Rotina: ${JSON.stringify(onboarding.routine || {})}
-Restricoes: ${Array.isArray(onboarding.constraints) ? onboarding.constraints.join(", ") : onboarding.constraints || ""}
+Profissao/Ocupacao: ${profession || ""}
+Rotina: ${routineText || JSON.stringify(routine || {})}
+Restricoes: ${constraints || ""}
+Travas: ${blockers}
+Baixa energia (funciona): ${lowEnergy}
 Preferencia de resposta: ${onboarding.response_style || onboarding.guidance_style || ""}
-Padroes reconhecidos: ${Array.isArray(onboarding.known_patterns) ? onboarding.known_patterns.join(", ") : onboarding.known_patterns || ""}
-Gatilhos: ${Array.isArray(onboarding.triggers) ? onboarding.triggers.join(", ") : ""}
-O que funciona: ${Array.isArray(onboarding.works) ? onboarding.works.join(", ") : onboarding.low_energy_works || ""}
-O que nao funciona: ${Array.isArray(onboarding.does_not_work) ? onboarding.does_not_work.join(", ") : ""}
-O que costuma travar: ${onboarding.blockers || ""}
-O que a Medusa nunca deve fazer: ${onboarding.never_do || ""}`;
+Padroes reconhecidos: ${asList(onboarding.known_patterns) || ""}
+Gatilhos: ${asList(onboarding.triggers) || ""}
+O que funciona: ${asList(onboarding.works) || lowEnergy || ""}
+O que nao funciona: ${asList(onboarding.does_not_work) || ""}
+O que a Medusa nunca deve fazer: ${neverDo}`;
+}
+
+export function documentsToPrompt(
+  documents:
+    | Array<{
+        file_name?: string;
+        extracted_summary?: string | null;
+        analysis_consent_at?: string;
+        analysis_consent_version?: string | null;
+      }>
+    | null
+    | undefined,
+) {
+  if (!documents || documents.length === 0) return "";
+
+  const rows = documents
+    .slice(0, 5)
+    .map((doc, index) => {
+      const summary = (doc.extracted_summary || "").slice(0, 1200);
+      return `${index + 1}) ${doc.file_name || "documento.pdf"}
+   consentimento: ${doc.analysis_consent_at || "nao informado"} (versao ${doc.analysis_consent_version || "2026-05"})
+   resumo_extraido: ${summary || "sem resumo disponivel"}`;
+    })
+    .join("\n");
+
+  return `DOCUMENTOS COM CONSENTIMENTO PARA ANALISE:
+${rows}`;
 }
 
 export function buildOutputInstruction(energy: number, outputMode?: string) {

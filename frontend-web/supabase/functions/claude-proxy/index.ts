@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.3";
 import {
   buildOutputInstruction,
   detectMode,
+  documentsToPrompt,
   MAX_HISTORY,
   MAX_MESSAGE_CHARS,
   MEDUSA_MODEL_DEFAULT,
@@ -19,16 +20,26 @@ interface ClaudeProxyPayload {
   energy: 1 | 2 | 3;
   mode?: MedusaMode;
   onboarding: {
+    display_name?: string;
+    gender?: string;
+    gender_other?: string | null;
     education_level?: string;
     profession?: string;
-    constraints?: string;
-    blockers?: string;
-    low_energy_works?: string;
+    profession_category?: string;
+    profession_other?: string | null;
+    constraints?: string | string[];
+    constraints_other?: string | null;
+    blockers?: string | string[];
+    blockers_other?: string | null;
+    low_energy_works?: string | string[];
+    low_energy_works_other?: string | null;
     guidance_style?: string;
-    known_patterns?: string;
-    never_do?: string;
+    known_patterns?: string | string[];
+    never_do?: string | string[];
+    never_do_other?: string | null;
     routine?: {
       days?: string[];
+      periods?: string[];
       start_time?: string;
       end_time?: string;
       variable_schedule?: boolean;
@@ -42,6 +53,13 @@ interface ClaudeProxyPayload {
     didnt_work?: string[];
     context?: string[];
   } | null;
+  documents?: Array<{
+    id?: string;
+    file_name?: string;
+    extracted_summary?: string | null;
+    analysis_consent_at?: string;
+    analysis_consent_version?: string | null;
+  }>;
 }
 
 const corsHeaders = {
@@ -81,12 +99,15 @@ function buildContext(
 
   const onboardingProfile = onboardingToPrompt(onboarding);
   const memoryProfile = memoryToPrompt(payload.memory);
+  const documentsProfile = documentsToPrompt(payload.documents);
   const outputInstruction = buildOutputInstruction(payload.energy, undefined);
 
   return `
 ${onboardingProfile || "PERFIL DO USUARIO: nao informado."}
 
 ${memoryProfile || "MEMORIA PERSISTENTE DO USUARIO: nao informada."}
+
+${documentsProfile || "DOCUMENTOS COM CONSENTIMENTO: nenhum."}
 
 CONTEXTO DA SESSAO:
 - Data ISO: ${now.toISOString()}

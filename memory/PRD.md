@@ -64,6 +64,16 @@ Construir a versão Web SaaS da Medusa em `/app/frontend-web` (React + Vite + Su
 - Campo de **gênero** adicionado nesta etapa inicial (`Mulher`, `Homem`, `Não-binário`, `Prefiro não informar`, `Outro`).
 - Persistência no onboarding: `gender` e `gender_other`.
 
+### Iteração atual — Chat usando onboarding + laudos com consentimento
+- Corrigido contexto enviado ao `claude-proxy` para sempre incluir onboarding atual (inclusive campos novos).
+- Adicionado contexto de documentos consentidos no payload do chat (`documents`).
+- `claude-proxy` agora monta bloco de contexto com:
+  - perfil onboarding normalizado
+  - memória persistente
+  - documentos com consentimento e resumo extraído
+- Sem consentimento do documento, ele não entra no contexto do chat.
+- Upload agora tenta extrair resumo textual básico do PDF no frontend para `extracted_summary`.
+
 ## Testes realizados
 - Bloqueio sem checkbox 18+ validado.
 - Fluxo 18+ → onboarding guiado → check-in validado (desktop/mobile).

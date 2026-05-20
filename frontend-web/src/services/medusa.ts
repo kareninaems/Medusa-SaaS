@@ -74,6 +74,44 @@ function mapDocumentUploadError(error: unknown): Error {
   return new Error(message || DOCUMENT_STORAGE_NOT_READY_MESSAGE);
 }
 
+async function extractPdfSummary(file: File): Promise<string | null> {
+  try {
+    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    const buffer = await file.arrayBuffer();
+    const loadingTask = pdfjs.getDocument({
+      data: new Uint8Array(buffer),
+      disableWorker: true,
+    });
+    const pdf = await loadingTask.promise;
+
+    const maxPages = Math.min(pdf.numPages, 4);
+    const chunks: string[] = [];
+
+    for (let pageNumber = 1; pageNumber <= maxPages; pageNumber += 1) {
+      const page = await pdf.getPage(pageNumber);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        .map((item) => ("str" in item ? String(item.str) : ""))
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      if (pageText) {
+        chunks.push(pageText);
+      }
+      if (chunks.join(" ").length >= 2500) {
+        break;
+      }
+    }
+
+    if (!chunks.length) return null;
+    const summary = chunks.join(" ").slice(0, 2500).trim();
+    return summary || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function ensureProfile(session: Session): Promise<Profile> {
   const { data: existing, error: fetchError } = await supabase
     .from("profiles")
@@ -171,6 +209,7 @@ export async function uploadUserDocument(userId: string, file: File): Promise<Us
 
   const generatedId = generateDocumentId();
   const filePath = `${userId}/${generatedId}.pdf`;
+  const extractedSummary = await extractPdfSummary(file);
 
   const { error: uploadError } = await supabase.storage
     .from("user-documents")
@@ -188,7 +227,7 @@ export async function uploadUserDocument(userId: string, file: File): Promise<Us
       file_path: filePath,
       file_name: file.name,
       mime_type: file.type,
-      extracted_summary: null,
+      extracted_summary: extractedSummary,
     })
     .select("*")
     .single();
@@ -219,7 +258,7 @@ export async function grantDocumentAnalysisConsent(userId: string, documentId: s
 
   const { data: current, error: currentError } = await supabase
     .from("user_documents")
-    .select("analysis_status")
+    .select("analysis_status, file_path, file_name, extracted_summary")
     .eq("id", documentId)
     .eq("user_id", userId)
     .single();
@@ -232,6 +271,15 @@ export async function grantDocumentAnalysisConsent(userId: string, documentId: s
   }
 
   const nextStatus = current?.analysis_status === "analyzed" ? "analyzed" : "awaiting_analysis";
+  let extractedSummary = current?.extracted_summary ?? null;
+
+  if (!extractedSummary && current?.file_path) {
+    const download = await supabase.storage.from("user-documents").download(current.file_path);
+    if (!download.error && download.data) {
+      const file = new File([download.data], current.file_name || "documento.pdf", { type: "application/pdf" });
+      extractedSummary = await extractPdfSummary(file);
+    }
+  }
 
   const { data, error } = await supabase
     .from("user_documents")
@@ -239,6 +287,7 @@ export async function grantDocumentAnalysisConsent(userId: string, documentId: s
       analysis_consent_at: consentAt,
       analysis_consent_version: DOCUMENT_ANALYSIS_CONSENT_VERSION,
       analysis_status: nextStatus,
+      extracted_summary: extractedSummary,
     })
     .eq("id", documentId)
     .eq("user_id", userId)

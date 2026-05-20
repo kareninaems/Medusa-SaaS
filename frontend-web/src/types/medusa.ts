@@ -99,4 +99,11 @@ export interface ClaudeProxyPayload {
   mode: MedusaMode;
   onboarding: ProfileOnboarding | null;
   memory: MemoryRow | null;
+  documents?: Array<{
+    id: string;
+    file_name: string;
+    extracted_summary: string | null;
+    analysis_consent_at: string;
+    analysis_consent_version: string | null;
+  }>;
 }
