@@ -12,6 +12,7 @@ interface OnboardingScreenProps {
 
 const DAYS = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo", "Variável"];
 const PERIODS = ["Manhã", "Tarde", "Noite", "Madrugada", "Comercial", "Plantões/turnos", "Variável"];
+const GENDER_OPTIONS = ["Mulher", "Homem", "Não-binário", "Prefiro não informar", "Outro"];
 const EDUCATION_OPTIONS = [
   "Ensino médio",
   "Técnico",
@@ -81,7 +82,7 @@ const LIMIT_OPTIONS = [
   "Não insistir quando eu estiver sem energia",
   "Outro",
 ];
-const TOTAL_STEPS = 7;
+const TOTAL_STEPS = 8;
 
 function toggleValue(current: string[], value: string) {
   return current.includes(value) ? current.filter((item) => item !== value) : [...current, value];
@@ -96,6 +97,8 @@ export function OnboardingScreen({
 }: OnboardingScreenProps) {
   const [step, setStep] = useState(0);
   const [displayName, setDisplayName] = useState(defaultName);
+  const [gender, setGender] = useState("Prefiro não informar");
+  const [genderOther, setGenderOther] = useState("");
   const [educationLevel, setEducationLevel] = useState("Graduação");
   const [educationOther, setEducationOther] = useState("");
   const [professionCategory, setProfessionCategory] = useState("Tecnologia");
@@ -125,29 +128,38 @@ export function OnboardingScreen({
 
   const canGoNext = useMemo(() => {
     if (step === 0) {
-      if (!displayName.trim() || !educationLevel || !professionCategory) return false;
+      if (!displayName.trim() || !gender) return false;
+      if (gender === "Outro" && !genderOther.trim()) return false;
+      return true;
+    }
+    if (step === 1) {
+      if (!educationLevel || !professionCategory) return false;
       if (educationLevel === "Outro" && !educationOther.trim()) return false;
       if (professionCategory === "Outro" && !professionOther.trim()) return false;
       return true;
     }
-    if (step === 1) return days.length > 0 && periods.length > 0;
     if (step === 2) {
+      return days.length > 0 && periods.length > 0;
+    }
+    if (step === 3) {
       if (constraints.length === 0) return false;
       if (constraints.includes("Outro") && !constraintsOther.trim()) return false;
       return true;
     }
-    if (step === 3) {
+    if (step === 4) {
       if (blockers.length === 0) return false;
       if (blockers.includes("Outro") && !blockersOther.trim()) return false;
       return true;
     }
-    if (step === 4) {
+    if (step === 5) {
       if (lowEnergyWorks.length === 0) return false;
       if (lowEnergyWorks.includes("Outro") && !lowEnergyOther.trim()) return false;
       return true;
     }
-    if (step === 5) return !!guidanceStyle;
     if (step === 6) {
+      return !!guidanceStyle;
+    }
+    if (step === 7) {
       if (neverDo.length === 0) return false;
       if (neverDo.includes("Outro") && !neverDoOther.trim()) return false;
       return true;
@@ -160,6 +172,8 @@ export function OnboardingScreen({
     constraintsOther,
     days.length,
     displayName,
+    gender,
+    genderOther,
     educationLevel,
     educationOther,
     guidanceStyle,
@@ -201,6 +215,8 @@ export function OnboardingScreen({
     await onSave({
       displayName: displayName.trim() || defaultName,
       onboarding: {
+        gender,
+        gender_other: gender === "Outro" ? genderOther.trim() : null,
         education_level: educationLevel,
         education_level_other: educationLevel === "Outro" ? educationOther.trim() : null,
         profession_category: professionCategory,
@@ -241,7 +257,7 @@ export function OnboardingScreen({
     if (step === 0) {
       return (
         <>
-          <h2>Identidade e contexto</h2>
+          <h2>Como você quer ser chamada(o)?</h2>
           <label className="field">
             <span>Nome de exibição</span>
             <input
@@ -252,6 +268,41 @@ export function OnboardingScreen({
               placeholder="Seu nome no app"
             />
           </label>
+          <label className="field">
+            <span>Gênero</span>
+            <select
+              data-testid="onboarding-gender-select"
+              className="input"
+              value={gender}
+              onChange={(event) => setGender(event.target.value)}
+            >
+              {GENDER_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
+          {gender === "Outro" ? (
+            <label className="field">
+              <span>Outro (gênero)</span>
+              <input
+                data-testid="onboarding-gender-other-input"
+                className="input"
+                value={genderOther}
+                onChange={(event) => setGenderOther(event.target.value)}
+                placeholder="Descreva em poucas palavras"
+              />
+            </label>
+          ) : null}
+        </>
+      );
+    }
+
+    if (step === 1) {
+      return (
+        <>
+          <h2>Identidade e contexto</h2>
           <label className="field">
             <span>Escolaridade</span>
             <select
@@ -310,7 +361,7 @@ export function OnboardingScreen({
       );
     }
 
-    if (step === 1) {
+    if (step === 2) {
       return (
         <>
           <h2>Rotina</h2>
@@ -355,7 +406,7 @@ export function OnboardingScreen({
       );
     }
 
-    if (step === 2) {
+    if (step === 3) {
       return (
         <>
           <h2>Restrições</h2>
@@ -388,7 +439,7 @@ export function OnboardingScreen({
       );
     }
 
-    if (step === 3) {
+    if (step === 4) {
       return (
         <>
           <h2>Travas</h2>
@@ -421,7 +472,7 @@ export function OnboardingScreen({
       );
     }
 
-    if (step === 4) {
+    if (step === 5) {
       return (
         <>
           <h2>Energia baixa</h2>
@@ -454,7 +505,7 @@ export function OnboardingScreen({
       );
     }
 
-    if (step === 5) {
+    if (step === 6) {
       return (
         <>
           <h2>Estilo de orientação</h2>

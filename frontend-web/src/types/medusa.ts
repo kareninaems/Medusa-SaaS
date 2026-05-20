@@ -2,6 +2,8 @@ export type EnergyLevel = 1 | 2 | 3;
 export type MedusaMode = "ACAO" | "FOCO" | "PROCESSO" | "TRAVA";
 
 export interface ProfileOnboarding {
+  gender: string | null;
+  gender_other: string | null;
   education_level: string;
   education_level_other: string | null;
   profession_category: string;

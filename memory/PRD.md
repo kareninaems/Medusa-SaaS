@@ -59,6 +59,11 @@ Construir a versão Web SaaS da Medusa em `/app/frontend-web` (React + Vite + Su
   - Conversão de caixas de texto para opções/chips com `Outro` opcional.
   - Mantida persistência no mesmo formato (`patterns`, `triggers`, `worked`, `didnt_work`, `context`).
 
+### Iteração atual — Onboarding inicial restaurado (nome + gênero)
+- Reintroduzida a etapa inicial do onboarding: “Como você quer ser chamada(o)?”.
+- Campo de **gênero** adicionado nesta etapa inicial (`Mulher`, `Homem`, `Não-binário`, `Prefiro não informar`, `Outro`).
+- Persistência no onboarding: `gender` e `gender_other`.
+
 ## Testes realizados
 - Bloqueio sem checkbox 18+ validado.
 - Fluxo 18+ → onboarding guiado → check-in validado (desktop/mobile).
