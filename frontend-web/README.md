@@ -58,6 +58,23 @@ Para habilitar upload opcional de PDF com bucket privado `user-documents`:
 - Execute: `/app/frontend-web/supabase/storage_user_documents_setup.sql`
 - Ou siga: `/app/frontend-web/supabase/STORAGE_SETUP.md`
 
+### Edge Function de análise manual de documento
+
+Nova função: `analyze-document` em `/app/frontend-web/supabase/functions/analyze-document/index.ts`
+
+Ela:
+- exige consentimento explícito por documento
+- lê PDF privado server-side no bucket `user-documents`
+- chama Claude server-side (`ANTHROPIC_MODEL`)
+- salva apenas resumo operacional em `extracted_summary`
+- atualiza status (`analyzed` ou `error`) e grava `audit_logs`
+
+Deploy (Supabase CLI):
+
+```bash
+supabase functions deploy analyze-document
+```
+
 ## 4) Deploy da Edge Function Claude
 
 Pré-requisito: Supabase CLI autenticada no projeto `wdjaggnxdbbovupfzslj`.

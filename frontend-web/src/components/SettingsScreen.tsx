@@ -10,6 +10,7 @@ interface SettingsScreenProps {
   activeDocumentActionId?: string | null;
   resetting?: boolean;
   onGrantDocumentConsent: (documentId: string) => Promise<void>;
+  onAnalyzeDocument: (documentId: string) => Promise<void>;
   onDeleteDocument: (document: UserDocument) => Promise<void>;
   onRefreshDocuments: () => Promise<void>;
   onReset: () => Promise<void>;
@@ -30,6 +31,7 @@ export function SettingsScreen({
   activeDocumentActionId = null,
   resetting = false,
   onGrantDocumentConsent,
+  onAnalyzeDocument,
   onDeleteDocument,
   onRefreshDocuments,
   onReset,
@@ -144,6 +146,33 @@ export function SettingsScreen({
                           ? "Salvando consentimento..."
                           : "Autorizo a Medusa a analisar este documento para personalizar minhas respostas."}
                       </button>
+                    ) : null}
+
+                    {document.analysis_consent_at && document.analysis_status === "awaiting_analysis" ? (
+                      <button
+                        data-testid={`settings-document-analyze-button-${document.id}`}
+                        className="primary-btn"
+                        disabled={isBusy}
+                        onClick={() => onAnalyzeDocument(document.id)}
+                      >
+                        {isBusy ? "Analisando..." : "Analisar documento"}
+                      </button>
+                    ) : null}
+
+                    {document.analysis_consent_at && document.analysis_status === "error" ? (
+                      <>
+                        <p className="status-error" data-testid={`settings-document-analysis-error-${document.id}`}>
+                          Erro na análise. Tentar novamente.
+                        </p>
+                        <button
+                          data-testid={`settings-document-retry-analysis-button-${document.id}`}
+                          className="primary-btn"
+                          disabled={isBusy}
+                          onClick={() => onAnalyzeDocument(document.id)}
+                        >
+                          {isBusy ? "Analisando..." : "Tentar novamente"}
+                        </button>
+                      </>
                     ) : null}
 
                     <button

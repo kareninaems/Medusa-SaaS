@@ -1,0 +1,62 @@
+{
+  "summary": "Frontend-only validation completed for manual PDF analysis in Setup. Consent flow now moves document to awaiting_analysis without auto-analysis, retry/error UI appears, delete works, and A/B isolation remained intact. Manual analyze call currently fails before server response (CORS/preflight), so analyze-document integration is blocked in this environment.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Setup > Analisar documento (manual)",
+        "issue": "Request to Supabase Edge Function analyze-document fails with browser CORS/preflight error; frontend cannot receive function response.",
+        "affected_testIDs": [
+          "settings-document-analyze-button-*",
+          "product-app-error"
+        ]
+      },
+      {
+        "flow": "Setup > Analysis error state persistence",
+        "issue": "After analyze failure, UI sets local status to 'Erro', but refresh restores backend status to 'Aguardando análise' (state mismatch).",
+        "affected_testIDs": [
+          "settings-document-status-*",
+          "settings-documents-refresh-button",
+          "settings-document-analysis-error-*",
+          "settings-document-retry-analysis-button-*"
+        ]
+      }
+    ],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/artifacts_iter3_smoke/app_loaded.jpg",
+    "/app/test_reports/artifacts_iter3_full/new_user_setup_before_consent.jpg",
+    "/app/test_reports/artifacts_iter3_full/new_user_after_analysis.jpg",
+    "/app/test_reports/artifacts_iter3_full/user_b_isolation.jpg",
+    "/root/.emergent/automation_output/20260524_160300/console_20260524_160300.log",
+    "/root/.emergent/automation_output/20260524_160358/console_20260524_160358.log"
+  ],
+  "action_items": [
+    "Deploy/verify Supabase Edge Function `analyze-document` in project `wdjaggnxdbbovupfzslj` and confirm OPTIONS/preflight returns HTTP 200 with CORS headers.",
+    "After deploy fix, re-test manual analyze for success path (`awaiting_analysis` -> `analyzed` + `extracted_summary` persisted).",
+    "Adjust frontend error handling so status is not forced to local `error` when network/preflight fails without backend update, or force immediate refresh after failure."
+  ],
+  "critical_code_review_comments": [
+    "`handleAnalyzeDocument` in App.tsx sets local `analysis_status: \"error\"` on any invoke failure, which can diverge from persisted backend state.",
+    "`analyzeDocument` integration is server-side as required (Supabase Edge Function invoke), but current environment blocks request at preflight/CORS, indicating deployment/config pending.",
+    "No automatic analysis is triggered by consent flow; analysis remains manual via explicit button as expected."
+  ],
+  "updated_files": [
+    "/app/test_reports/iteration_3.json"
+  ],
+  "success_rate": {
+    "backend": "N/A (not requested)",
+    "frontend": "83%"
+  },
+  "seed_data_creation": "Created test user manualpdf1779638581@test.com via UI registration. Uploaded PDF manual-analyze-1779638581.pdf, granted consent, triggered analyze/retry, then deleted this test document.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Use finalqa1779225467@test.com to reproduce awaiting_analysis + analyze button quickly. New user flow validated consent/manual-only logic end-to-end; analyze call currently blocked at CORS/preflight.",
+  "rca_of_issue": "Repro: Register/login -> complete onboarding -> upload PDF -> Setup -> grant consent -> click 'Analisar documento'. Browser logs show CORS/preflight failure to https://wdjaggnxdbbovupfzslj.supabase.co/functions/v1/analyze-document (non-OK preflight), so function response never reaches frontend. UI then marks local status as Erro and shows retry, but refresh reverts to Aguardando análise because backend document was not updated by failed request. Mitigation: ensure analyze-document is deployed and correctly handling OPTIONS/CORS at Supabase edge layer, then keep frontend status transitions aligned with persisted backend state."
+}

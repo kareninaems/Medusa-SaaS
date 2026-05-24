@@ -12,6 +12,7 @@ import { SettingsScreen } from "./components/SettingsScreen";
 import { PENDING_CONSENT_KEY, PRIVACY_VERSION, TERMS_VERSION } from "./constants/legal";
 import { supabase } from "./lib/supabase";
 import {
+  analyzeDocument,
   callClaudeProxy,
   confirmAge,
   deleteUserDocument,
@@ -365,6 +366,23 @@ function ProductApp() {
     }
   };
 
+  const handleAnalyzeDocument = async (documentId: string) => {
+    if (!session) return;
+    setActiveDocumentActionId(documentId);
+    setError("");
+    try {
+      const updated = await analyzeDocument(session, documentId);
+      setDocuments((current) => current.map((doc) => (doc.id === documentId ? updated : doc)));
+    } catch (analyzeError) {
+      setError(analyzeError instanceof Error ? analyzeError.message : "Falha ao analisar documento");
+      setDocuments((current) =>
+        current.map((doc) => (doc.id === documentId ? { ...doc, analysis_status: "error" } : doc)),
+      );
+    } finally {
+      setActiveDocumentActionId(null);
+    }
+  };
+
   const handleSendMessage = async (text: string) => {
     if (!session || !conversation || !profile) return;
     setSendingChat(true);
@@ -391,7 +409,12 @@ function ProductApp() {
         }));
 
       const consentedDocuments = documents
-        .filter((doc) => Boolean(doc.analysis_consent_at))
+        .filter(
+          (doc) =>
+            Boolean(doc.analysis_consent_at) &&
+            doc.analysis_status === "analyzed" &&
+            Boolean(doc.extracted_summary),
+        )
         .slice(0, 5)
         .map((doc) => ({
           id: doc.id,
@@ -592,6 +615,7 @@ function ProductApp() {
             loadingDocuments={loadingDocuments}
             activeDocumentActionId={activeDocumentActionId}
             onGrantDocumentConsent={handleGrantDocumentConsent}
+            onAnalyzeDocument={handleAnalyzeDocument}
             onDeleteDocument={handleDeleteDocument}
             onRefreshDocuments={handleRefreshDocuments}
             resetting={resetting}
