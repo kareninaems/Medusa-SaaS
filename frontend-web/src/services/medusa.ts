@@ -267,6 +267,13 @@ export async function analyzeDocument(session: Session, documentId: string): Pro
   });
 
   if (error) {
+    const message = (error.message || "").toLowerCase();
+    if (message.includes("not found")) {
+      throw new Error("Função de análise não encontrada. Faça deploy da Edge Function 'analyze-document'.");
+    }
+    if (message.includes("cors") || message.includes("failed to fetch") || message.includes("network")) {
+      throw new Error("Falha de conexão com a função de análise. Verifique deploy/CORS da Edge Function.");
+    }
     throw new Error(error.message || "Falha ao analisar documento");
   }
 

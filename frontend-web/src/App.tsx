@@ -375,9 +375,7 @@ function ProductApp() {
       setDocuments((current) => current.map((doc) => (doc.id === documentId ? updated : doc)));
     } catch (analyzeError) {
       setError(analyzeError instanceof Error ? analyzeError.message : "Falha ao analisar documento");
-      setDocuments((current) =>
-        current.map((doc) => (doc.id === documentId ? { ...doc, analysis_status: "error" } : doc)),
-      );
+      await handleRefreshDocuments();
     } finally {
       setActiveDocumentActionId(null);
     }
