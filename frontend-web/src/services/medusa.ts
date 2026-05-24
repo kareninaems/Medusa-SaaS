@@ -328,6 +328,19 @@ export async function ensureConversation(userId: string): Promise<Conversation> 
   return data as Conversation;
 }
 
+export async function getLatestConversation(userId: string): Promise<Conversation | null> {
+  const { data, error } = await supabase
+    .from("conversations")
+    .select("id, user_id, created_at, title")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data as Conversation | null) ?? null;
+}
+
 export async function createConversation(userId: string, title = "Sessão Medusa"): Promise<Conversation> {
   const { data, error } = await supabase
     .from("conversations")

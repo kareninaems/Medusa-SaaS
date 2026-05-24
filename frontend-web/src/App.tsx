@@ -15,9 +15,10 @@ import {
   analyzeDocument,
   callClaudeProxy,
   confirmAge,
+  createConversation,
   deleteUserDocument,
-  ensureConversation,
   ensureProfile,
+  getLatestConversation,
   grantDocumentAnalysisConsent,
   getMemory,
   getMessages,
@@ -68,6 +69,17 @@ function hasCrisisSignal(text: string): boolean {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
   return CRISIS_TERMS.some((term) => normalized.includes(term));
+}
+
+function isSameDay(isoDate: string): boolean {
+  const created = new Date(isoDate);
+  const now = new Date();
+
+  return (
+    created.getFullYear() === now.getFullYear() &&
+    created.getMonth() === now.getMonth() &&
+    created.getDate() === now.getDate()
+  );
 }
 
 function ConsentGate({
@@ -210,19 +222,22 @@ function ProductApp() {
         ensuredProfile = await ensureProfile(activeSession);
       }
 
-      const activeConversation = await ensureConversation(activeSession.user.id);
-      const [loadedMessages, loadedMemory, loadedDocuments] = await Promise.all([
-        getMessages(activeConversation.id),
+      const latestConversation = await getLatestConversation(activeSession.user.id);
+      const canReuseConversation = Boolean(latestConversation?.created_at && isSameDay(latestConversation.created_at));
+
+      const [loadedMemory, loadedDocuments, loadedMessages] = await Promise.all([
         getMemory(activeSession.user.id),
         listUserDocuments(activeSession.user.id),
+        canReuseConversation && latestConversation ? getMessages(latestConversation.id) : Promise.resolve([]),
       ]);
+
       setProfile(ensuredProfile);
-      setConversation(activeConversation);
+      setConversation(canReuseConversation ? latestConversation : null);
       setMessages(loadedMessages);
       setMemory(loadedMemory);
       setDocuments(loadedDocuments);
       setCheckInEnergy(null);
-      setCheckInDone(false);
+      setCheckInDone(canReuseConversation);
       setTab("chat");
     } catch (bootstrapError) {
       setError(bootstrapError instanceof Error ? bootstrapError.message : "Falha ao carregar dados");
@@ -312,9 +327,13 @@ function ProductApp() {
     setError("");
     try {
       await updateEnergy(session.user.id, energy);
+      const freshConversation = await createConversation(session.user.id);
       setProfile((current) => (current ? { ...current, energy_default: energy } : current));
+      setConversation(freshConversation);
+      setMessages([]);
       setCheckInEnergy(energy);
       setCheckInDone(true);
+      setTab("chat");
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Falha ao salvar check-in");
     } finally {

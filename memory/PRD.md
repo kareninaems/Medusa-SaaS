@@ -11,6 +11,17 @@ Construir a versão Web SaaS da Medusa em `/app/frontend-web` (React + Vite + Su
 
 ## Implementado
 
+### Iteração atual — Isolamento de sessão por check-in (P0)
+- **Nova conversa criada somente no check-in concluído** (não no login/reload).
+- **Login/reload no mesmo dia reutiliza a conversa ativa do dia** sem exigir novo check-in.
+- **Novo check-in inicia chat limpo** (estado de mensagens vazio na UI) preservando histórico no banco.
+- `App.tsx` atualizado para:
+  - usar `getLatestConversation` no bootstrap;
+  - reusar conversa apenas quando `created_at` é do dia atual;
+  - criar `createConversation(...)` ao confirmar check-in;
+  - carregar mensagens apenas da conversa ativa.
+- `medusa.ts` atualizado com `getLatestConversation(userId)`.
+
 ### Base já existente (antes desta iteração)
 - Fluxo completo: Auth → Consentimento legal → Onboarding → Check-in → Chat.
 - Persistência por usuário com RLS (`profiles`, `conversations`, `messages`, `memories`, `audit_logs`, `user_consents`).
@@ -106,9 +117,10 @@ Construir a versão Web SaaS da Medusa em `/app/frontend-web` (React + Vite + Su
 3. Revalidar upload PDF com sucesso ponta a ponta após migration.
 
 ### P1
-1. Exibir badge visual mais forte para documento com consentimento registrado.
-2. Soft delete opcional com `deleted_at` (em vez de hard delete) para trilha de auditoria.
-3. Tela de detalhes por documento (sem IA) com histórico de mudanças de status.
+1. Integração Stripe mensal (checkout + webhook + portal) — **não iniciada nesta rodada**.
+2. Exibir badge visual mais forte para documento com consentimento registrado.
+3. Soft delete opcional com `deleted_at` (em vez de hard delete) para trilha de auditoria.
+4. Tela de detalhes por documento (sem IA) com histórico de mudanças de status.
 
 ### P2
 1. Extração de resumo de PDF (`extracted_summary`) com consentimento explícito.
