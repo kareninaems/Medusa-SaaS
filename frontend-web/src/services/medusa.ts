@@ -81,7 +81,7 @@ async function extractPdfSummary(file: File): Promise<string | null> {
     const loadingTask = pdfjs.getDocument({
       data: new Uint8Array(buffer),
       disableWorker: true,
-    });
+    } as any);
     const pdf = await loadingTask.promise;
 
     const maxPages = Math.min(pdf.numPages, 4);
