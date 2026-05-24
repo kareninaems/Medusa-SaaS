@@ -74,6 +74,13 @@ Construir a versão Web SaaS da Medusa em `/app/frontend-web` (React + Vite + Su
 - Sem consentimento do documento, ele não entra no contexto do chat.
 - Upload agora tenta extrair resumo textual básico do PDF no frontend para `extracted_summary`.
 
+### Iteração atual — PWA básico (frontend-web)
+- Adicionado `manifest.webmanifest` com `name/short_name=Medusa`, `display=standalone`, `start_url=/`, `scope=/`, `theme/background=#F4F1EA`.
+- Adicionadas tags PWA no `index.html` (manifest, theme-color, metas Apple e apple-touch-icon).
+- Criados ícones simples em `public/icons` (`192x192`, `512x512`, `180x180`) com estilo papel quente + monograma.
+- Service worker mínimo e seguro (`public/sw.js`) sem cache de dados privados, sem cache de chat, PDFs ou chamadas Supabase/Edge.
+- Registro do SW adicionado em `src/main.tsx`.
+
 ## Testes realizados
 - Bloqueio sem checkbox 18+ validado.
 - Fluxo 18+ → onboarding guiado → check-in validado (desktop/mobile).
