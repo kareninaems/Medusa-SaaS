@@ -328,6 +328,32 @@ export async function ensureConversation(userId: string): Promise<Conversation> 
   return data as Conversation;
 }
 
+export async function createConversation(userId: string, title = "Sessão Medusa"): Promise<Conversation> {
+  const { data, error } = await supabase
+    .from("conversations")
+    .insert({
+      user_id: userId,
+      title,
+    })
+    .select("id, user_id, created_at, title")
+    .single();
+
+  if (error) throw error;
+  return data as Conversation;
+}
+
+export async function getConversationById(userId: string, conversationId: string): Promise<Conversation | null> {
+  const { data, error } = await supabase
+    .from("conversations")
+    .select("id, user_id, created_at, title")
+    .eq("id", conversationId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data as Conversation | null) ?? null;
+}
+
 export async function getMessages(conversationId: string): Promise<Message[]> {
   const { data, error } = await supabase
     .from("messages")
