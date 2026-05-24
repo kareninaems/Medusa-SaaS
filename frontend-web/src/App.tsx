@@ -42,6 +42,34 @@ import type {
 
 type AppTab = "chat" | "setup";
 
+const CRISIS_SAFE_FALLBACK =
+  "Isso é risco imediato. Eu não vou tentar resolver isso por chat.\n" +
+  "Se você está em perigo agora, ligue 188 (CVV), 192 (SAMU) ou 190, ou vá para uma emergência.\n" +
+  "Agora: afaste meios de se machucar e chame uma pessoa real para ficar com você.";
+
+const CRISIS_TERMS = [
+  "suicidio",
+  "me matar",
+  "quero morrer",
+  "tentativa de suicidio",
+  "autolesao",
+  "autoagressao",
+  "overdose",
+  "nao aguento mais viver",
+  "vou me machucar",
+  "plano para morrer",
+  "remedio para morrer",
+  "tomar remedio para morrer",
+];
+
+function hasCrisisSignal(text: string): boolean {
+  const normalized = text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  return CRISIS_TERMS.some((term) => normalized.includes(term));
+}
+
 function ConsentGate({
   loading,
   onAccept,
@@ -425,7 +453,34 @@ function ProductApp() {
 
       setMessages((current) => [...current, assistantMessage]);
     } catch (chatError) {
-      setError(chatError instanceof Error ? chatError.message : "Erro ao enviar mensagem");
+      if (hasCrisisSignal(text)) {
+        try {
+          const fallbackAssistantMessage = await insertMessage({
+            conversation_id: conversation.id,
+            user_id: session.user.id,
+            role: "assistant",
+            content: CRISIS_SAFE_FALLBACK,
+            energy: currentEnergy,
+            mode,
+          });
+          setMessages((current) => [...current, fallbackAssistantMessage]);
+        } catch {
+          const fallbackLocal: Message = {
+            id: `local-crisis-${Date.now()}`,
+            conversation_id: conversation.id,
+            user_id: session.user.id,
+            role: "assistant",
+            content: CRISIS_SAFE_FALLBACK,
+            energy: currentEnergy,
+            mode,
+            created_at: new Date().toISOString(),
+          };
+          setMessages((current) => [...current, fallbackLocal]);
+        }
+        setError("");
+      } else {
+        setError(chatError instanceof Error ? chatError.message : "Erro ao enviar mensagem");
+      }
     } finally {
       setSendingChat(false);
     }

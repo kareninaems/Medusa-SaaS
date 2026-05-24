@@ -77,6 +77,26 @@ const anthropicModel =
 const usePromptCaching =
   (Deno.env.get("ANTHROPIC_PROMPT_CACHING") ?? "false").toLowerCase() === "true";
 
+const CRISIS_SAFE_REPLY =
+  "Isso é risco imediato. Eu não vou tentar resolver isso por chat.\n" +
+  "Se você está em perigo agora, ligue 188 (CVV), 192 (SAMU) ou 190, ou vá para uma emergência.\n" +
+  "Agora: afaste meios de se machucar e chame uma pessoa real para ficar com você.";
+
+const CRISIS_TERMS = [
+  "suicidio",
+  "me matar",
+  "quero morrer",
+  "tentativa de suicidio",
+  "autolesao",
+  "autoagressao",
+  "overdose",
+  "nao aguento mais viver",
+  "vou me machucar",
+  "plano para morrer",
+  "remedio para morrer",
+  "tomar remedio para morrer",
+];
+
 const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
@@ -183,6 +203,22 @@ function pickUsageValue(value: unknown): number | null {
   return typeof value === "number" ? value : null;
 }
 
+function normalizeText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function hasCrisisSignal(messages: Array<{ role: "user" | "assistant"; content: string }>): boolean {
+  return messages
+    .filter((message) => message.role === "user")
+    .some((message) => {
+      const normalized = normalizeText(message.content || "");
+      return CRISIS_TERMS.some((term) => normalized.includes(term));
+    });
+}
+
 async function writeAuditLog(input: {
   userId: string | null;
   model: string;
@@ -208,15 +244,8 @@ serve(async (request) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  if (!anthropicApiKey) {
-    return new Response(
-      JSON.stringify({ error: "ANTHROPIC_API_KEY não configurada" }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
-  }
+  let crisisDetected = false;
+  let activeUserId: string | null = null;
 
   try {
     const authHeader = request.headers.get("Authorization") || "";
@@ -248,6 +277,8 @@ serve(async (request) => {
       });
     }
 
+    activeUserId = user.id;
+
     const payload = (await request.json()) as ClaudeProxyPayload;
     const safeMessages = (payload.messages || [])
       .filter((item) => ["user", "assistant"].includes(item.role))
@@ -263,6 +294,36 @@ serve(async (request) => {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    crisisDetected = hasCrisisSignal(safeMessages);
+    if (crisisDetected) {
+      await writeAuditLog({
+        userId: user.id,
+        model: anthropicModel,
+        status: "crisis_detected",
+      });
+
+      return new Response(
+        JSON.stringify({
+          reply: CRISIS_SAFE_REPLY,
+          model: "crisis-fallback",
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    if (!anthropicApiKey) {
+      return new Response(
+        JSON.stringify({ error: "ANTHROPIC_API_KEY não configurada" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     const analyzedDocuments = await loadAnalyzedDocumentsForContext(user.id);
@@ -299,6 +360,25 @@ serve(async (request) => {
     const raw = await anthropicResponse.json();
 
     if (!anthropicResponse.ok) {
+      if (crisisDetected) {
+        await writeAuditLog({
+          userId: user.id,
+          model: anthropicModel,
+          status: "crisis_fallback",
+        });
+
+        return new Response(
+          JSON.stringify({
+            reply: CRISIS_SAFE_REPLY,
+            model: "crisis-fallback",
+          }),
+          {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+
       await writeAuditLog({
         userId: user.id,
         model: anthropicModel,
@@ -323,6 +403,25 @@ serve(async (request) => {
       .trim();
 
     if (!reply) {
+      if (crisisDetected) {
+        await writeAuditLog({
+          userId: user.id,
+          model: anthropicModel,
+          status: "crisis_fallback",
+        });
+
+        return new Response(
+          JSON.stringify({
+            reply: CRISIS_SAFE_REPLY,
+            model: "crisis-fallback",
+          }),
+          {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+
       await writeAuditLog({
         userId: user.id,
         model: anthropicModel,
@@ -361,6 +460,25 @@ serve(async (request) => {
       },
     );
   } catch (error) {
+    if (crisisDetected) {
+      await writeAuditLog({
+        userId: activeUserId,
+        model: anthropicModel,
+        status: "crisis_fallback",
+      });
+
+      return new Response(
+        JSON.stringify({
+          reply: CRISIS_SAFE_REPLY,
+          model: "crisis-fallback",
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
     await writeAuditLog({
       userId: null,
       model: anthropicModel,

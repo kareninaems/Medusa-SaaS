@@ -74,6 +74,13 @@ Construir a versão Web SaaS da Medusa em `/app/frontend-web` (React + Vite + Su
 - Sem consentimento do documento, ele não entra no contexto do chat.
 - Upload agora tenta extrair resumo textual básico do PDF no frontend para `extracted_summary`.
 
+### Iteração atual — Correção crítica de crise (suicídio/autolesão)
+- `claude-proxy` agora detecta sinais de crise em mensagens do usuário antes da chamada ao modelo.
+- Em crise, retorna sempre HTTP 200 com fallback seguro em pt-BR (sem 4xx/5xx para esse fluxo).
+- Se houver falha inesperada durante crise, aplica fallback local da Edge Function (`crisis_fallback`) com 200.
+- Frontend: em erro genérico da edge + texto de crise, injeta resposta segura e não exibe apenas erro técnico.
+- `audit_logs`: registra `crisis_detected` / `crisis_fallback` sem persistir conteúdo sensível completo.
+
 ### Iteração atual — PWA básico (frontend-web)
 - Adicionado `manifest.webmanifest` com `name/short_name=Medusa`, `display=standalone`, `start_url=/`, `scope=/`, `theme/background=#F4F1EA`.
 - Adicionadas tags PWA no `index.html` (manifest, theme-color, metas Apple e apple-touch-icon).
