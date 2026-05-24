@@ -41,14 +41,55 @@ function sanitizeOperationalSummary(raw: string): string {
     .replace(/\b\d{5}-?\d{3}\b/g, "[redigido-cep]")
     .trim();
 
+  const sectionDefs = [
+    { key: "diagnosticos", title: "Diagnósticos/hipóteses", matcher: /diagn[oó]sticos\/?hip[oó]teses?/i },
+    { key: "inteligencia", title: "Inteligência/nível cognitivo", matcher: /intelig[eê]ncia\/?n[ií]vel cognitivo/i },
+    { key: "perfil", title: "Perfil cognitivo", matcher: /perfil cognitivo/i },
+    { key: "sobrecarga", title: "Sinais de sobrecarga", matcher: /sinais de sobrecarga/i },
+    {
+      key: "recomendacoes",
+      title: "Recomendações operacionais para a Medusa",
+      matcher: /recomenda[cç][oõ]es operacionais para a medusa/i,
+    },
+  ] as const;
+
+  const buckets: Record<string, string[]> = {};
+  for (const section of sectionDefs) buckets[section.key] = [];
+
+  let currentKey: string | null = null;
   const lines = withoutPii
     .split(/\n+/)
-    .map((line) => line.replace(/^[-•\d.)\s]+/, "").trim())
+    .map((line) => line.trim())
     .filter(Boolean)
-    .slice(0, 10);
+    .slice(0, 60);
 
-  const normalized = lines.map((line) => `- ${line}`).join("\n");
-  return normalized.slice(0, 1500);
+  for (const line of lines) {
+    const normalizedLine = line.replace(/^[-•\d.)\s]+/, "").trim();
+
+    let switched = false;
+    for (const section of sectionDefs) {
+      if (section.matcher.test(normalizedLine)) {
+        currentKey = section.key;
+        const payload = normalizedLine.split(":").slice(1).join(":").trim();
+        if (payload) buckets[currentKey].push(payload);
+        switched = true;
+        break;
+      }
+    }
+    if (switched) continue;
+
+    if (currentKey) {
+      buckets[currentKey].push(normalizedLine);
+    }
+  }
+
+  const fallback = "não informado no documento";
+  const assembled = sectionDefs.map((section) => {
+    const value = buckets[section.key].join(" ").replace(/\s+/g, " ").trim();
+    return `${section.title}: ${value || fallback}`;
+  });
+
+  return assembled.join("\n").slice(0, 2200);
 }
 
 async function writeAuditLog(input: {
@@ -139,7 +180,7 @@ serve(async (request) => {
       });
     }
 
-    if (!["awaiting_analysis", "error"].includes(documentRow.analysis_status)) {
+    if (!["awaiting_analysis", "error", "analyzed"].includes(documentRow.analysis_status)) {
       return new Response(JSON.stringify({ error: "Documento não está pronto para análise manual" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -189,10 +230,22 @@ serve(async (request) => {
     }
 
     const base64Pdf = uint8ToBase64(binary);
-    const analysisPrompt =
-      "Extraia em até 10 linhas informações úteis para personalização da Medusa. " +
-      "Não incluir nome, CPF, endereço, telefone ou dados identificadores. " +
-      "Não diagnosticar. Não prescrever. Retornar apenas resumo operacional.";
+    const analysisPrompt = [
+      "Extraia APENAS o que está escrito no documento, sem inferir, sem completar lacunas e sem diagnosticar por conta própria.",
+      "Não incluir nome, CPF, endereço, telefone ou qualquer dado identificador.",
+      "Não retornar texto integral do laudo.",
+      "Responda em português, em até 12 linhas, neste formato EXATO:",
+      "Diagnósticos/hipóteses: ...",
+      "Inteligência/nível cognitivo: ...",
+      "Perfil cognitivo: ...",
+      "Sinais de sobrecarga: ...",
+      "Recomendações operacionais para a Medusa: ...",
+      "Regras adicionais obrigatórias:",
+      "1) Diferencie diagnóstico fechado, hipótese e traço observado somente se o laudo explicitar.",
+      "2) Se houver QI/percentil/classificação cognitiva, incluir literalmente; se não houver, escrever 'não informado no documento'.",
+      "3) Se qualquer seção não estiver no laudo, escrever 'não informado no documento'.",
+      "4) Não diagnosticar, não prescrever, não inventar.",
+    ].join("\n");
 
     const anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",

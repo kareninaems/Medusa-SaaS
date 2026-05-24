@@ -159,6 +159,17 @@ export function SettingsScreen({
                       </button>
                     ) : null}
 
+                    {document.analysis_consent_at && document.analysis_status === "analyzed" ? (
+                      <button
+                        data-testid={`settings-document-reanalyze-button-${document.id}`}
+                        className="ghost-btn"
+                        disabled={isBusy}
+                        onClick={() => onAnalyzeDocument(document.id)}
+                      >
+                        {isBusy ? "Reanalisando..." : "Reanalisar documento"}
+                      </button>
+                    ) : null}
+
                     {document.analysis_consent_at && document.analysis_status === "error" ? (
                       <>
                         <p className="status-error" data-testid={`settings-document-analysis-error-${document.id}`}>
