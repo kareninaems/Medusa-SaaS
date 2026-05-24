@@ -239,8 +239,7 @@ export function documentsToPrompt(
     | Array<{
         file_name?: string;
         extracted_summary?: string | null;
-        analysis_consent_at?: string;
-        analysis_consent_version?: string | null;
+        uploaded_at?: string;
       }>
     | null
     | undefined,
@@ -252,12 +251,13 @@ export function documentsToPrompt(
     .map((doc, index) => {
       const summary = (doc.extracted_summary || "").slice(0, 1200);
       return `${index + 1}) ${doc.file_name || "documento.pdf"}
-   consentimento: ${doc.analysis_consent_at || "nao informado"} (versao ${doc.analysis_consent_version || "2026-05"})
-   resumo_extraido: ${summary || "sem resumo disponivel"}`;
+ - arquivo: ${doc.file_name || "documento.pdf"}
+ - resumo operacional: ${summary || "sem resumo disponivel"}
+ - upload: ${doc.uploaded_at || "nao informado"}`;
     })
     .join("\n");
 
-  return `DOCUMENTOS COM CONSENTIMENTO PARA ANALISE:
+  return `DOCUMENTOS ANALISADOS DO USUARIO:
 ${rows}`;
 }
 

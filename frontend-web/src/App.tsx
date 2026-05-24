@@ -406,29 +406,12 @@ function ProductApp() {
           content: item.content,
         }));
 
-      const consentedDocuments = documents
-        .filter(
-          (doc) =>
-            Boolean(doc.analysis_consent_at) &&
-            doc.analysis_status === "analyzed" &&
-            Boolean(doc.extracted_summary),
-        )
-        .slice(0, 5)
-        .map((doc) => ({
-          id: doc.id,
-          file_name: doc.file_name ?? "documento.pdf",
-          extracted_summary: doc.extracted_summary,
-          analysis_consent_at: doc.analysis_consent_at as string,
-          analysis_consent_version: doc.analysis_consent_version,
-        }));
-
       const proxyResponse = await callClaudeProxy(session, {
         messages: historyForModel,
         energy: currentEnergy,
         mode,
         onboarding: profile.onboarding ? { ...profile.onboarding, display_name: profile.display_name } : null,
         memory,
-        documents: consentedDocuments,
       });
 
       const assistantMessage = await insertMessage({

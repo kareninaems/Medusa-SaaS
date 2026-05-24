@@ -81,9 +81,58 @@ const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
+const MAX_DOCUMENTS_IN_CONTEXT = 5;
+const MAX_DOCUMENT_CONTEXT_CHARS = 4000;
+
+interface DocumentContextRow {
+  file_name: string | null;
+  extracted_summary: string | null;
+  uploaded_at: string;
+}
+
+async function loadAnalyzedDocumentsForContext(userId: string): Promise<DocumentContextRow[]> {
+  const { data, error } = await adminClient
+    .from("user_documents")
+    .select("file_name, extracted_summary, uploaded_at")
+    .eq("user_id", userId)
+    .eq("analysis_status", "analyzed")
+    .not("analysis_consent_at", "is", null)
+    .not("extracted_summary", "is", null)
+    .order("uploaded_at", { ascending: false })
+    .limit(20);
+
+  if (error || !data) {
+    return [];
+  }
+
+  const out: DocumentContextRow[] = [];
+  let totalChars = 0;
+
+  for (const row of data) {
+    const summary = (row.extracted_summary || "").trim();
+    if (!summary) continue;
+
+    const normalizedSummary = summary.slice(0, 1200);
+    const chunkSize = (row.file_name || "documento.pdf").length + normalizedSummary.length;
+
+    if (out.length >= MAX_DOCUMENTS_IN_CONTEXT) break;
+    if (totalChars + chunkSize > MAX_DOCUMENT_CONTEXT_CHARS) break;
+
+    out.push({
+      file_name: row.file_name,
+      extracted_summary: normalizedSummary,
+      uploaded_at: row.uploaded_at,
+    });
+    totalChars += chunkSize;
+  }
+
+  return out;
+}
+
 function buildContext(
   payload: ClaudeProxyPayload,
   safeMessages: Array<{ role: "user" | "assistant"; content: string }>,
+  analyzedDocuments: DocumentContextRow[],
 ): string {
   const onboarding = payload.onboarding;
   const sessionMode = payload.mode || detectMode(safeMessages.at(-1)?.content || "");
@@ -99,7 +148,7 @@ function buildContext(
 
   const onboardingProfile = onboardingToPrompt(onboarding);
   const memoryProfile = memoryToPrompt(payload.memory);
-  const documentsProfile = documentsToPrompt(payload.documents);
+  const documentsProfile = documentsToPrompt(analyzedDocuments);
   const outputInstruction = buildOutputInstruction(payload.energy, undefined);
 
   return `
@@ -107,7 +156,11 @@ ${onboardingProfile || "PERFIL DO USUARIO: nao informado."}
 
 ${memoryProfile || "MEMORIA PERSISTENTE DO USUARIO: nao informada."}
 
-${documentsProfile || "DOCUMENTOS COM CONSENTIMENTO: nenhum."}
+${documentsProfile || "DOCUMENTOS ANALISADOS DO USUARIO: nenhum."}
+
+REGRA DOCUMENTOS:
+- Se o usuario perguntar se voce tem acesso ao laudo/documento, responda exatamente:
+"Tenho acesso ao resumo operacional do documento analisado com seu consentimento, nao ao PDF bruto."
 
 CONTEXTO DA SESSAO:
 - Data ISO: ${now.toISOString()}
@@ -212,7 +265,8 @@ serve(async (request) => {
       });
     }
 
-    const systemPrompt = `${SYSTEM_PROMPT}\n\n${buildContext(payload, safeMessages)}`;
+    const analyzedDocuments = await loadAnalyzedDocumentsForContext(user.id);
+    const systemPrompt = `${SYSTEM_PROMPT}\n\n${buildContext(payload, safeMessages, analyzedDocuments)}`;
     const anthropicPayload: Record<string, unknown> = {
       model: anthropicModel,
       max_tokens: 700,
