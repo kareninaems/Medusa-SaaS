@@ -354,6 +354,66 @@ select:focus-visible {
   gap: 4px;
 }
 
+.chat-signals {
+  width: min(760px, 100%);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.signal-card {
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.signal-risk {
+  border-color: #c48f8f;
+  background: #faeeee;
+}
+
+.signal-followup {
+  border-color: #d3c3a8;
+  background: #f8f2e9;
+}
+
+.signal-memory {
+  border-color: #bed2c7;
+  background: #edf6f1;
+}
+
+.signal-title {
+  font-size: 0.95rem;
+  font-weight: 650;
+  color: var(--text-main);
+}
+
+.signal-copy {
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+}
+
+.followup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.signal-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+}
+
 .messages-scroll {
   overflow-y: auto;
   border: none;

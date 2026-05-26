@@ -11,6 +11,17 @@ Construir a versão Web SaaS da Medusa em `/app/frontend-web` (React + Vite + Su
 
 ## Implementado
 
+### Iteração atual — “Transformar em realidade” (fundação funcional)
+- **Estado ativo visível no topo** com indicador persistente: `Estado atual: <loop>`.
+- **Memória visível ao usuário** no chat (`Memória visível da Medusa`) com highlights de padrões/gatilhos/estratégias que funcionam.
+- **Resumo de carga semanal** no chat com contagem de dias de energia baixa.
+- **Sinal precoce de pré-BURNOUT** quando os últimos 3 dias registrados ficam em energia baixa.
+- **Follow-up automático de evidência** preparado (extração de ação da sessão anterior + respostas rápidas `sim/parcial/não`).
+- Backend Supabase client estendido com funções para:
+  - leitura de conversa anterior,
+  - leitura da última mensagem de assistente,
+  - leitura de sinais recentes por usuário.
+
 ### Iteração atual — Isolamento de sessão por check-in (P0)
 - **Nova conversa criada somente no check-in concluído** (não no login/reload).
 - **Login/reload no mesmo dia reutiliza a conversa ativa do dia** sem exigir novo check-in.

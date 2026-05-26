@@ -367,12 +367,63 @@ export async function getConversationById(userId: string, conversationId: string
   return (data as Conversation | null) ?? null;
 }
 
+export async function getPreviousConversation(
+  userId: string,
+  currentConversationId?: string | null,
+): Promise<Conversation | null> {
+  let query = supabase
+    .from("conversations")
+    .select("id, user_id, created_at, title")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(6);
+
+  if (currentConversationId) {
+    query = query.neq("id", currentConversationId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw error;
+  const rows = (data as Conversation[] | null) ?? [];
+  return rows[0] ?? null;
+}
+
 export async function getMessages(conversationId: string): Promise<Message[]> {
   const { data, error } = await supabase
     .from("messages")
     .select("id, conversation_id, user_id, role, content, energy, mode, created_at")
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: true });
+
+  if (error) throw error;
+  return (data ?? []) as Message[];
+}
+
+export async function getLatestAssistantMessage(conversationId: string): Promise<Message | null> {
+  const { data, error } = await supabase
+    .from("messages")
+    .select("id, conversation_id, user_id, role, content, energy, mode, created_at")
+    .eq("conversation_id", conversationId)
+    .eq("role", "assistant")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data as Message | null) ?? null;
+}
+
+export async function getRecentMessagesByUser(userId: string, days = 7): Promise<Message[]> {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data, error } = await supabase
+    .from("messages")
+    .select("id, conversation_id, user_id, role, content, energy, mode, created_at")
+    .eq("user_id", userId)
+    .gte("created_at", since)
+    .order("created_at", { ascending: false })
+    .limit(300);
 
   if (error) throw error;
   return (data ?? []) as Message[];
