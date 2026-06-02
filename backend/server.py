@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -14,10 +14,12 @@ from datetime import datetime
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+# MongoDB connection. Preview environments may not always provide Mongo
+# credentials; keep the API alive so health checks and the frontend can load.
+mongo_url = os.environ.get('MONGO_URL')
+db_name = os.environ.get('DB_NAME', 'medusa_saas')
+client = AsyncIOMotorClient(mongo_url) if mongo_url else None
+db = client[db_name] if client is not None else None
 
 # Create the main app without a prefix
 app = FastAPI()
@@ -35,21 +37,35 @@ class StatusCheck(BaseModel):
 class StatusCheckCreate(BaseModel):
     client_name: str
 
+
+def get_db():
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database is not configured")
+    return db
+
+
 # Add your routes to the router instead of directly to app
 @api_router.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return {"message": "Hello World", "status": "ok"}
+
+
+@api_router.get("/health")
+async def health_check():
+    return {"status": "ok", "database_configured": db is not None}
 
 @api_router.post("/status", response_model=StatusCheck)
 async def create_status_check(input: StatusCheckCreate):
+    database = get_db()
     status_dict = input.dict()
     status_obj = StatusCheck(**status_dict)
-    _ = await db.status_checks.insert_one(status_obj.dict())
+    _ = await database.status_checks.insert_one(status_obj.dict())
     return status_obj
 
 @api_router.get("/status", response_model=List[StatusCheck])
 async def get_status_checks():
-    status_checks = await db.status_checks.find().to_list(1000)
+    database = get_db()
+    status_checks = await database.status_checks.find().to_list(1000)
     return [StatusCheck(**status_check) for status_check in status_checks]
 
 # Include the router in the main app
@@ -72,4 +88,5 @@ logger = logging.getLogger(__name__)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
-    client.close()
+    if client is not None:
+        client.close()
