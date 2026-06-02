@@ -1,7 +1,7 @@
 import type { Session } from "@supabase/supabase-js";
 import { Link } from "react-router-dom";
 
-import type { UserDocument } from "../types/medusa";
+import type { SubscriptionStatus, UserDocument } from "../types/medusa";
 
 interface SettingsScreenProps {
   session: Session;
@@ -9,12 +9,14 @@ interface SettingsScreenProps {
   loadingDocuments?: boolean;
   activeDocumentActionId?: string | null;
   resetting?: boolean;
+  subscriptionStatus?: SubscriptionStatus;
   onGrantDocumentConsent: (documentId: string) => Promise<void>;
   onAnalyzeDocument: (documentId: string) => Promise<void>;
   onDeleteDocument: (document: UserDocument) => Promise<void>;
   onRefreshDocuments: () => Promise<void>;
   onReset: () => Promise<void>;
   onSignOut: () => Promise<void>;
+  onManageSubscription?: () => Promise<void>;
 }
 
 const STATUS_LABELS: Record<UserDocument["analysis_status"], string> = {
@@ -25,18 +27,29 @@ const STATUS_LABELS: Record<UserDocument["analysis_status"], string> = {
   error: "Erro",
 };
 
+const SUBSCRIPTION_STATUS_LABELS: Record<SubscriptionStatus, string> = {
+  free: "Gratuito",
+  trialing: "Período de teste",
+  active: "Ativo",
+  past_due: "Pagamento pendente",
+  canceled: "Cancelado",
+  incomplete: "Incompleto",
+};
+
 export function SettingsScreen({
   session,
   documents,
   loadingDocuments = false,
   activeDocumentActionId = null,
   resetting = false,
+  subscriptionStatus,
   onGrantDocumentConsent,
   onAnalyzeDocument,
   onDeleteDocument,
   onRefreshDocuments,
   onReset,
   onSignOut,
+  onManageSubscription,
 }: SettingsScreenProps) {
   const confirmReset = async () => {
     const confirmed = window.confirm(
@@ -71,6 +84,24 @@ export function SettingsScreen({
           <strong>Ver conta</strong>
           <span>{session.user.email}</span>
         </div>
+
+        {subscriptionStatus !== undefined ? (
+          <div className="setup-item" data-testid="settings-subscription-section">
+            <strong>Assinatura</strong>
+            <span data-testid="settings-subscription-status">
+              Status: {SUBSCRIPTION_STATUS_LABELS[subscriptionStatus] ?? subscriptionStatus}
+            </span>
+            {onManageSubscription ? (
+              <button
+                data-testid="settings-manage-subscription-button"
+                className="ghost-btn"
+                onClick={onManageSubscription}
+              >
+                Gerenciar assinatura
+              </button>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="setup-item">
           <strong>Resetar dados</strong>

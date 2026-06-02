@@ -501,6 +501,25 @@ export async function upsertMemory(
   return data as MemoryRow;
 }
 
+export async function createCheckoutSession(session: Session): Promise<{ url: string }> {
+  const { data, error } = await supabase.functions.invoke("stripe-checkout", {
+    body: {},
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+    },
+  });
+
+  if (error) {
+    throw new Error(error.message || "Falha ao criar sessão de checkout");
+  }
+
+  if (!data?.url) {
+    throw new Error("Resposta inválida do checkout Stripe");
+  }
+
+  return { url: data.url as string };
+}
+
 export async function callClaudeProxy(
   session: Session,
   payload: ClaudeProxyPayload,

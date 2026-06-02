@@ -27,6 +27,8 @@ export interface ProfileOnboarding {
   age_confirmed_at?: string;
 }
 
+export type SubscriptionStatus = "free" | "trialing" | "active" | "past_due" | "canceled" | "incomplete";
+
 export interface Profile {
   id: string;
   created_at: string;
@@ -39,6 +41,9 @@ export interface Profile {
   privacy_accepted_at: string | null;
   terms_version: string | null;
   privacy_version: string | null;
+  stripe_customer_id?: string | null;
+  stripe_subscription_id?: string | null;
+  subscription_status?: SubscriptionStatus;
 }
 
 export interface UserDocument {

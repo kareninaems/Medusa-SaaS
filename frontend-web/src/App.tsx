@@ -8,6 +8,7 @@ import { CheckInScreen } from "./components/CheckInScreen";
 import { CrisisPage, PrivacyPage, TermsPage } from "./components/LegalPages";
 import { MemoryScreen } from "./components/MemoryScreen";
 import { OnboardingScreen } from "./components/OnboardingScreen";
+import { PaywallScreen } from "./components/PaywallScreen";
 import { SettingsScreen } from "./components/SettingsScreen";
 import { PENDING_CONSENT_KEY, PRIVACY_VERSION, TERMS_VERSION } from "./constants/legal";
 import { supabase } from "./lib/supabase";
@@ -16,6 +17,7 @@ import {
   triggerDocumentAnalysis,
   callClaudeProxy,
   confirmAge,
+  createCheckoutSession,
   createConversation,
   deleteUserDocument,
   ensureProfile,
@@ -303,6 +305,7 @@ function ProductApp() {
   const [uploadingDocument, setUploadingDocument] = useState(false);
   const [loadingDocuments, setLoadingDocuments] = useState(false);
   const [activeDocumentActionId, setActiveDocumentActionId] = useState<string | null>(null);
+  const [checkingOut, setCheckingOut] = useState(false);
   const [error, setError] = useState("");
 
   const onboardingMissing = useMemo(() => {
@@ -713,6 +716,20 @@ function ProductApp() {
     await supabase.auth.signOut();
   };
 
+  const handleCheckout = async () => {
+    if (!session) return;
+    setCheckingOut(true);
+    setError("");
+    try {
+      const { url } = await createCheckoutSession(session);
+      window.location.href = url;
+    } catch (checkoutError) {
+      setError(checkoutError instanceof Error ? checkoutError.message : "Falha ao iniciar checkout");
+    } finally {
+      setCheckingOut(false);
+    }
+  };
+
   const handleAcceptConsent = async () => {
     if (!session) return;
     setSavingConsent(true);
@@ -791,6 +808,18 @@ function ProductApp() {
           onConfirm={handleCheckIn}
         />
         {error ? <p className="status-error" data-testid="checkin-flow-error">{error}</p> : null}
+      </div>
+    );
+  }
+
+  const isSubscribed =
+    profile.subscription_status === "active" || profile.subscription_status === "trialing";
+
+  if (!isSubscribed) {
+    return (
+      <div className="app-shell">
+        <PaywallScreen onCheckout={handleCheckout} loading={checkingOut} />
+        {error ? <p className="status-error" data-testid="paywall-error">{error}</p> : null}
       </div>
     );
   }
@@ -879,6 +908,8 @@ function ProductApp() {
           resetting={resetting}
           onReset={handleReset}
           onSignOut={handleSignOut}
+          subscriptionStatus={profile.subscription_status}
+          onManageSubscription={handleCheckout}
         />
       </div>
     </div>
