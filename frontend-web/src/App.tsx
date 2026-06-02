@@ -13,6 +13,7 @@ import { PENDING_CONSENT_KEY, PRIVACY_VERSION, TERMS_VERSION } from "./constants
 import { supabase } from "./lib/supabase";
 import {
   analyzeDocument,
+  triggerDocumentAnalysis,
   callClaudeProxy,
   confirmAge,
   createConversation,
@@ -427,6 +428,34 @@ function ProductApp() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!session) return;
+
+    const channel = supabase
+      .channel('user-documents-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'user_documents',
+          filter: `user_id=eq.${session.user.id}`,
+        },
+        (payload) => {
+          setDocuments((current) =>
+            current.map((doc) =>
+              doc.id === payload.new.id ? { ...doc, ...(payload.new as UserDocument) } : doc
+            )
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [session]);
+
   const handleOnboardingSave = async (payload: {
     displayName: string;
     onboarding: Profile["onboarding"];
@@ -530,7 +559,14 @@ function ProductApp() {
     setError("");
     try {
       const updated = await grantDocumentAnalysisConsent(session.user.id, documentId);
-      setDocuments((current) => current.map((doc) => (doc.id === documentId ? updated : doc)));
+      // status local otimista: analyzing
+      setDocuments((current) =>
+        current.map((doc) =>
+          doc.id === documentId ? { ...updated, analysis_status: "analyzing" } : doc
+        )
+      );
+      // dispara análise sem aguardar — Realtime vai atualizar quando terminar
+      triggerDocumentAnalysis(session, documentId);
     } catch (consentError) {
       setError(consentError instanceof Error ? consentError.message : "Falha ao salvar consentimento");
     } finally {
@@ -557,8 +593,14 @@ function ProductApp() {
     setActiveDocumentActionId(documentId);
     setError("");
     try {
-      const updated = await analyzeDocument(session, documentId);
-      setDocuments((current) => current.map((doc) => (doc.id === documentId ? updated : doc)));
+      // status local otimista: analyzing
+      setDocuments((current) =>
+        current.map((doc) =>
+          doc.id === documentId ? { ...doc, analysis_status: "analyzing" } : doc
+        )
+      );
+      // dispara análise sem aguardar — Realtime vai atualizar quando terminar
+      triggerDocumentAnalysis(session, documentId);
     } catch (analyzeError) {
       setError(analyzeError instanceof Error ? analyzeError.message : "Falha ao analisar documento");
       await handleRefreshDocuments();

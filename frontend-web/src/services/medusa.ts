@@ -284,6 +284,25 @@ export async function analyzeDocument(session: Session, documentId: string): Pro
   return normalizeUserDocument(data.document as Record<string, unknown>);
 }
 
+export async function triggerDocumentAnalysis(session: Session, documentId: string): Promise<{ ok: boolean }> {
+  try {
+    const { error } = await supabase.functions.invoke("analyze-document", {
+      body: { document_id: documentId },
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+    });
+    if (error) {
+      console.error("[triggerDocumentAnalysis] Edge Function error:", error.message);
+      return { ok: false };
+    }
+    return { ok: true };
+  } catch (err) {
+    console.error("[triggerDocumentAnalysis] Unexpected error:", err);
+    return { ok: false };
+  }
+}
+
 export async function deleteUserDocument(userId: string, document: Pick<UserDocument, "id" | "file_path">): Promise<void> {
   const { error: storageError } = await supabase.storage.from("user-documents").remove([document.file_path]);
 

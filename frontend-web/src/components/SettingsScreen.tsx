@@ -20,6 +20,7 @@ interface SettingsScreenProps {
 const STATUS_LABELS: Record<UserDocument["analysis_status"], string> = {
   uploaded: "Enviado",
   awaiting_analysis: "Aguardando análise",
+  analyzing: "Analisando...",
   analyzed: "Analisado",
   error: "Erro",
 };
@@ -148,26 +149,11 @@ export function SettingsScreen({
                       </button>
                     ) : null}
 
-                    {document.analysis_consent_at && document.analysis_status === "awaiting_analysis" ? (
-                      <button
-                        data-testid={`settings-document-analyze-button-${document.id}`}
-                        className="primary-btn"
-                        disabled={isBusy}
-                        onClick={() => onAnalyzeDocument(document.id)}
-                      >
-                        {isBusy ? "Analisando..." : "Analisar documento"}
-                      </button>
-                    ) : null}
-
-                    {document.analysis_consent_at && document.analysis_status === "analyzed" ? (
-                      <button
-                        data-testid={`settings-document-reanalyze-button-${document.id}`}
-                        className="ghost-btn"
-                        disabled={isBusy}
-                        onClick={() => onAnalyzeDocument(document.id)}
-                      >
-                        {isBusy ? "Reanalisando..." : "Reanalisar documento"}
-                      </button>
+                    {document.analysis_consent_at &&
+                    (document.analysis_status === "awaiting_analysis" || document.analysis_status === "analyzing") ? (
+                      <p className="muted" data-testid={`settings-document-analyzing-info-${document.id}`}>
+                        Análise em andamento...
+                      </p>
                     ) : null}
 
                     {document.analysis_consent_at && document.analysis_status === "error" ? (

@@ -48,7 +48,7 @@ export interface UserDocument {
   file_name: string | null;
   mime_type: string | null;
   uploaded_at: string;
-  analysis_status: "uploaded" | "awaiting_analysis" | "analyzed" | "error";
+  analysis_status: "uploaded" | "awaiting_analysis" | "analyzing" | "analyzed" | "error";
   analysis_consent_at: string | null;
   analysis_consent_version: string | null;
   deleted_at: string | null;
