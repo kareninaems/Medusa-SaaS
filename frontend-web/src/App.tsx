@@ -44,7 +44,6 @@ import type {
   UserDocument,
 } from "./types/medusa";
 
-type AppTab = "chat" | "setup";
 type FollowUpAnswer = "sim" | "parcial" | "não";
 
 const CRISIS_SAFE_FALLBACK =
@@ -293,12 +292,10 @@ function ProductApp() {
   const [followUpAction, setFollowUpAction] = useState<string | null>(null);
   const [checkInEnergy, setCheckInEnergy] = useState<EnergyLevel | null>(null);
   const [checkInDone, setCheckInDone] = useState(false);
-  const [tab, setTab] = useState<AppTab>("chat");
   const [loading, setLoading] = useState(true);
   const [savingOnboarding, setSavingOnboarding] = useState(false);
   const [savingCheckIn, setSavingCheckIn] = useState(false);
   const [sendingChat, setSendingChat] = useState(false);
-  const [savingMemory, setSavingMemory] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [savingConsent, setSavingConsent] = useState(false);
   const [confirmingAge, setConfirmingAge] = useState(false);
@@ -336,7 +333,6 @@ function ProductApp() {
 
   const currentEnergy = checkInEnergy ?? profile?.energy_default ?? 2;
   const activeLoop = useMemo(() => detectActiveLoop(messages), [messages]);
-  const memoryHighlights = useMemo(() => buildMemoryHighlights(memory), [memory]);
   const burnoutSignals = useMemo(() => computeBurnoutSignals(recentSignals), [recentSignals]);
 
   const bootstrap = async (activeSession: Session) => {
@@ -383,7 +379,6 @@ function ProductApp() {
       setFollowUpAction(nextFollowUpAction);
       setCheckInEnergy(null);
       setCheckInDone(canReuseConversation);
-      setTab("chat");
     } catch (bootstrapError) {
       setError(bootstrapError instanceof Error ? bootstrapError.message : "Falha ao carregar dados");
     } finally {
@@ -478,7 +473,6 @@ function ProductApp() {
       setMessages([]);
       setCheckInEnergy(energy);
       setCheckInDone(true);
-      setTab("chat");
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Falha ao salvar check-in");
     } finally {
@@ -658,26 +652,6 @@ function ProductApp() {
     setFollowUpAction(null);
   };
 
-  const handleSaveMemory = async (payload: {
-    patterns: string[];
-    triggers: string[];
-    worked: string[];
-    didnt_work: string[];
-    context: string[];
-  }) => {
-    if (!session) return;
-    setSavingMemory(true);
-    setError("");
-    try {
-      const updated = await upsertMemory(session.user.id, payload);
-      setMemory(updated);
-    } catch (memoryError) {
-      setError(memoryError instanceof Error ? memoryError.message : "Erro ao salvar memória");
-    } finally {
-      setSavingMemory(false);
-    }
-  };
-
   const handleReset = async () => {
     if (!session) return;
     setResetting(true);
@@ -780,124 +754,91 @@ function ProductApp() {
   }
 
   return (
-    <div className="app-shell">
-      <header className="top-bar">
-        <div className="brand-block">
-          <p className="eyebrow">Medusa</p>
-          <h1 className="app-title">Medusa</h1>
-          <p className="muted" data-testid="current-energy-indicator">Energia atual: {currentEnergy}</p>
-          <p className="muted" data-testid="active-loop-indicator">
+    <div className=”app-shell”>
+      <header className=”top-bar”>
+        <div className=”brand-block”>
+          <p className=”eyebrow”>Medusa</p>
+          <h1 className=”app-title”>Medusa</h1>
+          <p className=”muted” data-testid=”current-energy-indicator”>Energia atual: {currentEnergy}</p>
+          <p className=”muted” data-testid=”active-loop-indicator”>
             Estado atual: {activeLoop.name}
-            {activeLoop.since ? ` · desde ${formatSinceTime(activeLoop.since)}` : ""}
+            {activeLoop.since ? ` · desde ${formatSinceTime(activeLoop.since)}` : “”}
           </p>
         </div>
-        <nav className="top-tabs">
-          <button
-            data-testid="top-tab-chat-button"
-            className={`ghost-btn ${tab === "chat" ? "active-tab" : ""}`}
-            onClick={() => setTab("chat")}
-          >
-            Chat
-          </button>
-          <button
-            data-testid="top-tab-setup-button"
-            className={`ghost-btn ${tab === "setup" ? "active-tab" : ""}`}
-            onClick={() => setTab("setup")}
-          >
-            Setup
-          </button>
-        </nav>
       </header>
 
-      {error ? <p className="status-error" data-testid="product-app-error">{error}</p> : null}
+      {error ? <p className=”status-error” data-testid=”product-app-error”>{error}</p> : null}
 
-      {tab === "chat" ? (
-        <>
-          <section className="chat-signals" data-testid="chat-signals-panel">
-            {burnoutSignals.isRisk ? (
-              <div className="signal-card signal-risk" data-testid="burnout-risk-card">
-                <p className="signal-title">Risco de pré-BURNOUT detectado</p>
-                <p className="signal-copy">
-                  Últimos 3 dias com energia baixa. Hoje a recomendação é proteção: nenhuma nova tarefa crítica.
-                </p>
-              </div>
-            ) : null}
-
-            {followUpAction ? (
-              <div className="signal-card signal-followup" data-testid="followup-card">
-                <p className="signal-title">Follow-up automático</p>
-                <p className="signal-copy">Ontem você combinou: “{followUpAction}”</p>
-                <div className="followup-actions">
-                  <button
-                    data-testid="followup-answer-yes-button"
-                    className="ghost-btn"
-                    onClick={() => handleFollowUpAnswer("sim")}
-                    disabled={sendingChat}
-                  >
-                    Sim
-                  </button>
-                  <button
-                    data-testid="followup-answer-partial-button"
-                    className="ghost-btn"
-                    onClick={() => handleFollowUpAnswer("parcial")}
-                    disabled={sendingChat}
-                  >
-                    Parcial
-                  </button>
-                  <button
-                    data-testid="followup-answer-no-button"
-                    className="ghost-btn"
-                    onClick={() => handleFollowUpAnswer("não")}
-                    disabled={sendingChat}
-                  >
-                    Não
-                  </button>
-                </div>
-              </div>
-            ) : null}
-
-            {memoryHighlights.length > 0 ? (
-              <div className="signal-card signal-memory" data-testid="memory-visible-card">
-                <p className="signal-title">Memória visível da Medusa</p>
-                <ul className="signal-list" data-testid="memory-visible-list">
-                  {memoryHighlights.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-
-            <p className="muted" data-testid="weekly-load-summary">
-              Carga da semana: {burnoutSignals.lowDays} dia(s) de energia baixa em {burnoutSignals.trackedDays} dia(s) com registro.
+      <section className=”chat-signals” data-testid=”chat-signals-panel”>
+        {burnoutSignals.isRisk ? (
+          <div className=”signal-card signal-risk” data-testid=”burnout-risk-card”>
+            <p className=”signal-title”>Risco de pré-BURNOUT detectado</p>
+            <p className=”signal-copy”>
+              Últimos 3 dias com energia baixa. Hoje a recomendação é proteção: nenhuma nova tarefa crítica.
             </p>
-          </section>
+          </div>
+        ) : null}
 
-          <ChatScreen
-            messages={messages}
-            sending={sendingChat}
-            energy={currentEnergy}
-            onSend={handleSendMessage}
-          />
-        </>
-      ) : null}
-      {tab === "setup" ? (
-        <div className="setup-column">
-          <SettingsScreen
-            session={session}
-            documents={documents}
-            loadingDocuments={loadingDocuments}
-            activeDocumentActionId={activeDocumentActionId}
-            onGrantDocumentConsent={handleGrantDocumentConsent}
-            onAnalyzeDocument={handleAnalyzeDocument}
-            onDeleteDocument={handleDeleteDocument}
-            onRefreshDocuments={handleRefreshDocuments}
-            resetting={resetting}
-            onReset={handleReset}
-            onSignOut={handleSignOut}
-          />
-          <MemoryScreen memory={memory} saving={savingMemory} onSave={handleSaveMemory} />
-        </div>
-      ) : null}
+        {checkInEnergy !== null && followUpAction ? (
+          <div className=”signal-card signal-followup” data-testid=”followup-card”>
+            <p className=”signal-title”>Follow-up automático</p>
+            <p className=”signal-copy”>Ontem você combinou: “{followUpAction}”</p>
+            <div className=”followup-actions”>
+              <button
+                data-testid=”followup-answer-yes-button”
+                className=”ghost-btn”
+                onClick={() => handleFollowUpAnswer(“sim”)}
+                disabled={sendingChat}
+              >
+                Sim
+              </button>
+              <button
+                data-testid=”followup-answer-partial-button”
+                className=”ghost-btn”
+                onClick={() => handleFollowUpAnswer(“parcial”)}
+                disabled={sendingChat}
+              >
+                Parcial
+              </button>
+              <button
+                data-testid=”followup-answer-no-button”
+                className=”ghost-btn”
+                onClick={() => handleFollowUpAnswer(“não”)}
+                disabled={sendingChat}
+              >
+                Não
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        <p className=”muted” data-testid=”weekly-load-summary”>
+          Carga da semana: {burnoutSignals.lowDays} dia(s) de energia baixa em {burnoutSignals.trackedDays} dia(s) com registro.
+        </p>
+      </section>
+
+      <ChatScreen
+        messages={messages}
+        sending={sendingChat}
+        energy={currentEnergy}
+        onSend={handleSendMessage}
+      />
+
+      <div className=”setup-column”>
+        <SettingsScreen
+          session={session}
+          documents={documents}
+          loadingDocuments={loadingDocuments}
+          activeDocumentActionId={activeDocumentActionId}
+          onGrantDocumentConsent={handleGrantDocumentConsent}
+          onAnalyzeDocument={handleAnalyzeDocument}
+          onDeleteDocument={handleDeleteDocument}
+          onRefreshDocuments={handleRefreshDocuments}
+          resetting={resetting}
+          onReset={handleReset}
+          onSignOut={handleSignOut}
+        />
+      </div>
     </div>
   );
 }
