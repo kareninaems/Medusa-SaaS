@@ -825,56 +825,56 @@ function ProductApp() {
   }
 
   return (
-    <div className=”app-shell”>
-      <header className=”top-bar”>
-        <div className=”brand-block”>
-          <p className=”eyebrow”>Medusa</p>
-          <h1 className=”app-title”>Medusa</h1>
-          <p className=”muted” data-testid=”current-energy-indicator”>Energia atual: {currentEnergy}</p>
-          <p className=”muted” data-testid=”active-loop-indicator”>
+    <div className="app-shell">
+      <header className="top-bar">
+        <div className="brand-block">
+          <p className="eyebrow">Medusa</p>
+          <h1 className="app-title">Medusa</h1>
+          <p className="muted" data-testid="current-energy-indicator">Energia atual: {currentEnergy}</p>
+          <p className="muted" data-testid="active-loop-indicator">
             Estado atual: {activeLoop.name}
-            {activeLoop.since ? ` · desde ${formatSinceTime(activeLoop.since)}` : “”}
+            {activeLoop.since ? ` · desde ${formatSinceTime(activeLoop.since)}` : ""}
           </p>
         </div>
       </header>
 
-      {error ? <p className=”status-error” data-testid=”product-app-error”>{error}</p> : null}
+      {error ? <p className="status-error" data-testid="product-app-error">{error}</p> : null}
 
-      <section className=”chat-signals” data-testid=”chat-signals-panel”>
+      <section className="chat-signals" data-testid="chat-signals-panel">
         {burnoutSignals.isRisk ? (
-          <div className=”signal-card signal-risk” data-testid=”burnout-risk-card”>
-            <p className=”signal-title”>Risco de pré-BURNOUT detectado</p>
-            <p className=”signal-copy”>
+          <div className="signal-card signal-risk" data-testid="burnout-risk-card">
+            <p className="signal-title">Risco de pré-BURNOUT detectado</p>
+            <p className="signal-copy">
               Últimos 3 dias com energia baixa. Hoje a recomendação é proteção: nenhuma nova tarefa crítica.
             </p>
           </div>
         ) : null}
 
         {checkInEnergy !== null && followUpAction ? (
-          <div className=”signal-card signal-followup” data-testid=”followup-card”>
-            <p className=”signal-title”>Follow-up automático</p>
-            <p className=”signal-copy”>Ontem você combinou: “{followUpAction}”</p>
-            <div className=”followup-actions”>
+          <div className="signal-card signal-followup" data-testid="followup-card">
+            <p className="signal-title">Follow-up automático</p>
+            <p className="signal-copy">Ontem você combinou: "{followUpAction}"</p>
+            <div className="followup-actions">
               <button
-                data-testid=”followup-answer-yes-button”
-                className=”ghost-btn”
-                onClick={() => handleFollowUpAnswer(“sim”)}
+                data-testid="followup-answer-yes-button"
+                className="ghost-btn"
+                onClick={() => handleFollowUpAnswer("sim")}
                 disabled={sendingChat}
               >
                 Sim
               </button>
               <button
-                data-testid=”followup-answer-partial-button”
-                className=”ghost-btn”
-                onClick={() => handleFollowUpAnswer(“parcial”)}
+                data-testid="followup-answer-partial-button"
+                className="ghost-btn"
+                onClick={() => handleFollowUpAnswer("parcial")}
                 disabled={sendingChat}
               >
                 Parcial
               </button>
               <button
-                data-testid=”followup-answer-no-button”
-                className=”ghost-btn”
-                onClick={() => handleFollowUpAnswer(“não”)}
+                data-testid="followup-answer-no-button"
+                className="ghost-btn"
+                onClick={() => handleFollowUpAnswer("não")}
                 disabled={sendingChat}
               >
                 Não
@@ -883,7 +883,7 @@ function ProductApp() {
           </div>
         ) : null}
 
-        <p className=”muted” data-testid=”weekly-load-summary”>
+        <p className="muted" data-testid="weekly-load-summary">
           Carga da semana: {burnoutSignals.lowDays} dia(s) de energia baixa em {burnoutSignals.trackedDays} dia(s) com registro.
         </p>
       </section>
@@ -895,7 +895,7 @@ function ProductApp() {
         onSend={handleSendMessage}
       />
 
-      <div className=”setup-column”>
+      <div className="setup-column">
         <SettingsScreen
           session={session}
           documents={documents}
