@@ -47,12 +47,12 @@ import type {
   UserDocument,
 } from "./types/medusa";
 
-type FollowUpAnswer = "sim" | "parcial" | "não";
+type FollowUpAnswer = "sim" | "parcial" | "nao";
 
 const CRISIS_SAFE_FALLBACK =
-  "Isso é risco imediato. Eu não vou tentar resolver isso por chat.\n" +
-  "Se você está em perigo agora, ligue 188 (CVV), 192 (SAMU) ou 190, ou vá para uma emergência.\n" +
-  "Agora: afaste meios de se machucar e chame uma pessoa real para ficar com você.";
+  "Isso e risco imediato. Eu nao vou tentar resolver isso por chat.\n" +
+  "Se voce esta em perigo agora, ligue 188 (CVV), 192 (SAMU) ou 190, ou va para uma emergencia.\n" +
+  "Agora: afaste meios de se machucar e chame uma pessoa real para ficar com voce.";
 
 const CRISIS_TERMS = [
   "suicidio",
@@ -73,7 +73,7 @@ const LOOP_NAMES = [
   "MINIONS",
   "MERIDA-RILEY",
   "COIOTE",
-  "SÍSIFO",
+  "SISIFO",
   "MICHAEL SCOTT",
   "DON QUIXOTE",
   "BURNOUT",
@@ -84,7 +84,7 @@ const LOOP_HINTS: Record<(typeof LOOP_NAMES)[number], string[]> = {
   MINIONS: ["sem direcao", "paralis", "trav", "comando"],
   "MERIDA-RILEY": ["sobrecarga", "muitas tarefas", "travado com muita coisa"],
   COIOTE: ["acao infinita", "sem questionar", "executando sem parar"],
-  "SÍSIFO": ["carregando tudo", "peso", "aceitando tudo"],
+  SISIFO: ["carregando tudo", "peso", "aceitando tudo"],
   "MICHAEL SCOTT": ["feedback", "funcionou", "retorno"],
   "DON QUIXOTE": ["percepcao", "estimativa", "realidade"],
   BURNOUT: ["exaust", "esgot", "energia 1"],
@@ -94,7 +94,7 @@ const LOOP_HINTS: Record<(typeof LOOP_NAMES)[number], string[]> = {
 function hasCrisisSignal(text: string): boolean {
   const normalized = text
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .toLowerCase();
   return CRISIS_TERMS.some((term) => normalized.includes(term));
 }
@@ -102,7 +102,7 @@ function hasCrisisSignal(text: string): boolean {
 function normalizeText(value: string): string {
   return value
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .toLowerCase();
 }
 
@@ -121,7 +121,7 @@ function detectActiveLoop(messages: Message[]): { name: string; since: string | 
     }
   }
 
-  return { name: "EM OBSERVAÇÃO", since: null };
+  return { name: "EM OBSERVACAO", since: null };
 }
 
 function extractActionFromAssistant(content: string): string | null {
@@ -149,9 +149,9 @@ function buildMemoryHighlights(memory: MemoryRow | null): string[] {
   if (!memory) return [];
 
   const highlights = [
-    ...memory.patterns.slice(0, 2).map((item) => `Padrão: ${item}`),
+    ...memory.patterns.slice(0, 2).map((item) => `Padrao: ${item}`),
     ...memory.triggers.slice(0, 1).map((item) => `Gatilho: ${item}`),
-    ...memory.worked.slice(0, 1).map((item) => `Funciona para você: ${item}`),
+    ...memory.worked.slice(0, 1).map((item) => `Funciona para voce: ${item}`),
   ];
 
   return highlights.filter(Boolean).slice(0, 4);
@@ -225,7 +225,7 @@ function ConsentGate({
       <p className="eyebrow">Consentimento</p>
       <h2>Confirme os documentos legais para continuar</h2>
       <p className="muted">
-        Versões atuais: Termos {TERMS_VERSION} / Privacidade {PRIVACY_VERSION}
+        Versoes atuais: Termos {TERMS_VERSION} / Privacidade {PRIVACY_VERSION}
       </p>
 
       <label className="check-row">
@@ -237,7 +237,7 @@ function ConsentGate({
         />
         <span>
           Li e aceito os <Link to="/terms">Termos de Uso</Link> e a{" "}
-          <Link to="/privacy">Política de Privacidade</Link>.
+          <Link to="/privacy">Politica de Privacidade</Link>.
         </span>
       </label>
 
@@ -246,7 +246,7 @@ function ConsentGate({
       </button>
 
       <p className="muted">
-        Este documento é um modelo inicial e deve ser revisado por profissional jurídico antes do lançamento público.
+        Este documento e um modelo inicial e deve ser revisado por profissional juridico antes do lancamento publico.
       </p>
     </div>
   );
@@ -263,9 +263,9 @@ function AgeGate({
 
   return (
     <div className="screen compact" data-testid="age-gate-screen">
-      <p className="eyebrow">Segurança</p>
-      <h2>Confirmação obrigatória de idade</h2>
-      <p className="muted">A Medusa é destinada apenas para pessoas com 18 anos ou mais.</p>
+      <p className="eyebrow">Seguranca</p>
+      <h2>Confirmacao obrigatoria de idade</h2>
+      <p className="muted">A Medusa e destinada apenas para pessoas com 18 anos ou mais.</p>
 
       <label className="check-row">
         <input
@@ -435,13 +435,13 @@ function ProductApp() {
     if (!session) return;
 
     const channel = supabase
-      .channel('user-documents-realtime')
+      .channel("user-documents-realtime")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'user_documents',
+          event: "UPDATE",
+          schema: "public",
+          table: "user_documents",
           filter: `user_id=eq.${session.user.id}`,
         },
         (payload) => {
@@ -562,13 +562,11 @@ function ProductApp() {
     setError("");
     try {
       const updated = await grantDocumentAnalysisConsent(session.user.id, documentId);
-      // status local otimista: analyzing
       setDocuments((current) =>
         current.map((doc) =>
           doc.id === documentId ? { ...updated, analysis_status: "analyzing" } : doc
         )
       );
-      // dispara análise sem aguardar — Realtime vai atualizar quando terminar
       triggerDocumentAnalysis(session, documentId);
     } catch (consentError) {
       setError(consentError instanceof Error ? consentError.message : "Falha ao salvar consentimento");
@@ -596,13 +594,11 @@ function ProductApp() {
     setActiveDocumentActionId(documentId);
     setError("");
     try {
-      // status local otimista: analyzing
       setDocuments((current) =>
         current.map((doc) =>
           doc.id === documentId ? { ...doc, analysis_status: "analyzing" } : doc
         )
       );
-      // dispara análise sem aguardar — Realtime vai atualizar quando terminar
       triggerDocumentAnalysis(session, documentId);
     } catch (analyzeError) {
       setError(analyzeError instanceof Error ? analyzeError.message : "Falha ao analisar documento");
@@ -692,7 +688,7 @@ function ProductApp() {
   const handleFollowUpAnswer = async (answer: FollowUpAnswer) => {
     if (!followUpAction) return;
 
-    const payload = `Follow-up de evidência: ${answer}.\nAção combinada: ${followUpAction}`;
+    const payload = `Follow-up de evidencia: ${answer}.\nAcao combinada: ${followUpAction}`;
     await handleSendMessage(payload);
     setFollowUpAction(null);
   };
@@ -790,7 +786,7 @@ function ProductApp() {
         <OnboardingScreen
           loading={savingOnboarding}
           uploadingDocument={uploadingDocument}
-          defaultName={session.user.email?.split("@")[0] ?? "usuário"}
+          defaultName={session.user.email?.split("@")[0] ?? "usuario"}
           onUploadDocument={handleUploadDocument}
           onSave={handleOnboardingSave}
         />
@@ -833,7 +829,7 @@ function ProductApp() {
           <p className="muted" data-testid="current-energy-indicator">Energia atual: {currentEnergy}</p>
           <p className="muted" data-testid="active-loop-indicator">
             Estado atual: {activeLoop.name}
-            {activeLoop.since ? ` · desde ${formatSinceTime(activeLoop.since)}` : ""}
+            {activeLoop.since ? ` - desde ${formatSinceTime(activeLoop.since)}` : ""}
           </p>
         </div>
       </header>
@@ -843,17 +839,17 @@ function ProductApp() {
       <section className="chat-signals" data-testid="chat-signals-panel">
         {burnoutSignals.isRisk ? (
           <div className="signal-card signal-risk" data-testid="burnout-risk-card">
-            <p className="signal-title">Risco de pré-BURNOUT detectado</p>
+            <p className="signal-title">Risco de pre-BURNOUT detectado</p>
             <p className="signal-copy">
-              Últimos 3 dias com energia baixa. Hoje a recomendação é proteção: nenhuma nova tarefa crítica.
+              Ultimos 3 dias com energia baixa. Hoje a recomendacao e protecao: nenhuma nova tarefa critica.
             </p>
           </div>
         ) : null}
 
         {checkInEnergy !== null && followUpAction ? (
           <div className="signal-card signal-followup" data-testid="followup-card">
-            <p className="signal-title">Follow-up automático</p>
-            <p className="signal-copy">Ontem você combinou: "{followUpAction}"</p>
+            <p className="signal-title">Follow-up automatico</p>
+            <p className="signal-copy">Ontem voce combinou: {followUpAction}</p>
             <div className="followup-actions">
               <button
                 data-testid="followup-answer-yes-button"
@@ -874,10 +870,10 @@ function ProductApp() {
               <button
                 data-testid="followup-answer-no-button"
                 className="ghost-btn"
-                onClick={() => handleFollowUpAnswer("não")}
+                onClick={() => handleFollowUpAnswer("nao")}
                 disabled={sendingChat}
               >
-                Não
+                Nao
               </button>
             </div>
           </div>
