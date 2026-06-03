@@ -510,11 +510,13 @@ export async function createCheckoutSession(session: Session): Promise<{ url: st
   });
 
   if (error) {
-    throw new Error(error.message || "Falha ao criar sessão de checkout");
+    const detail = (data as { detail?: string } | null)?.detail;
+    throw new Error(detail || error.message || "Falha ao criar sessao de checkout");
   }
 
   if (!data?.url) {
-    throw new Error("Resposta inválida do checkout Stripe");
+    const detail = (data as { error?: string; detail?: string } | null)?.detail || (data as { error?: string } | null)?.error;
+    throw new Error(detail || "Resposta invalida do checkout Stripe");
   }
 
   return { url: data.url as string };

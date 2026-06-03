@@ -83,7 +83,7 @@ serve(async (req) => {
     if (!customerRes.ok) {
       const err = await customerRes.text();
       console.error("Stripe create customer error:", err);
-      return json({ error: "Failed to create Stripe customer" }, 500);
+      return json({ error: "Failed to create Stripe customer", detail: err }, 500);
     }
 
     const customer = await customerRes.json();
@@ -123,7 +123,7 @@ serve(async (req) => {
   if (!checkoutRes.ok) {
     const err = await checkoutRes.text();
     console.error("Stripe checkout session error:", err);
-    return json({ error: "Failed to create checkout session" }, 500);
+    return json({ error: "Failed to create checkout session", detail: err }, 500);
   }
 
   const session = await checkoutRes.json();
