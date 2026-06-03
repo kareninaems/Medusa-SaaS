@@ -6,14 +6,12 @@ import { AuthScreen } from "./components/AuthScreen";
 import { ChatScreen } from "./components/ChatScreen";
 import { CheckInScreen } from "./components/CheckInScreen";
 import { CrisisPage, PrivacyPage, TermsPage } from "./components/LegalPages";
-import { MemoryScreen } from "./components/MemoryScreen";
 import { OnboardingScreen } from "./components/OnboardingScreen";
 import { PaywallScreen } from "./components/PaywallScreen";
 import { SettingsScreen } from "./components/SettingsScreen";
 import { PENDING_CONSENT_KEY, PRIVACY_VERSION, TERMS_VERSION } from "./constants/legal";
 import { supabase } from "./lib/supabase";
 import {
-  analyzeDocument,
   triggerDocumentAnalysis,
   callClaudeProxy,
   confirmAge,
@@ -36,7 +34,6 @@ import {
   updateEnergy,
   updateOnboarding,
   uploadUserDocument,
-  upsertMemory,
 } from "./services/medusa";
 import type {
   Conversation,
@@ -46,6 +43,7 @@ import type {
   Profile,
   UserDocument,
 } from "./types/medusa";
+
 
 type FollowUpAnswer = "sim" | "parcial" | "nao";
 
@@ -143,18 +141,6 @@ function extractActionFromAssistant(content: string): string | null {
   const normalized = priority.replace(/^(\d+[\).]|[-•])\s+/, "").trim();
   if (normalized.length < 12) return null;
   return normalized.slice(0, 160);
-}
-
-function buildMemoryHighlights(memory: MemoryRow | null): string[] {
-  if (!memory) return [];
-
-  const highlights = [
-    ...memory.patterns.slice(0, 2).map((item) => `Padrao: ${item}`),
-    ...memory.triggers.slice(0, 1).map((item) => `Gatilho: ${item}`),
-    ...memory.worked.slice(0, 1).map((item) => `Funciona para voce: ${item}`),
-  ];
-
-  return highlights.filter(Boolean).slice(0, 4);
 }
 
 function computeBurnoutSignals(recentMessages: Message[]): {
