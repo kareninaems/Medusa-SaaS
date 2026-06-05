@@ -7,7 +7,7 @@ import { ChatScreen } from "./components/ChatScreen";
 import { CheckInScreen } from "./components/CheckInScreen";
 import { CrisisPage, PrivacyPage, TermsPage } from "./components/LegalPages";
 import { OnboardingScreen } from "./components/OnboardingScreen";
-import { PaywallScreen } from "./components/PaywallScreen";
+// import { PaywallScreen } from "./components/PaywallScreen"; // TEMP disabled
 import { SettingsScreen } from "./components/SettingsScreen";
 import { PENDING_CONSENT_KEY, PRIVACY_VERSION, TERMS_VERSION } from "./constants/legal";
 import { supabase } from "./lib/supabase";
@@ -291,7 +291,7 @@ function ProductApp() {
   const [uploadingDocument, setUploadingDocument] = useState(false);
   const [loadingDocuments, setLoadingDocuments] = useState(false);
   const [activeDocumentActionId, setActiveDocumentActionId] = useState<string | null>(null);
-  const [checkingOut, setCheckingOut] = useState(false);
+  const [_checkingOut, setCheckingOut] = useState(false);
   const [error, setError] = useState("");
 
   const onboardingMissing = useMemo(() => {
@@ -794,17 +794,17 @@ function ProductApp() {
     );
   }
 
-  const isSubscribed =
-    profile.subscription_status === "active" || profile.subscription_status === "trialing";
-
-  if (!isSubscribed) {
-    return (
-      <div className="app-shell">
-        <PaywallScreen onCheckout={handleCheckout} loading={checkingOut} />
-        {error ? <p className="status-error" data-testid="paywall-error">{error}</p> : null}
-      </div>
-    );
-  }
+  // TEMP: paywall disabled for owner testing — re-enable before public launch
+  // const isSubscribed =
+  //   profile.subscription_status === "active" || profile.subscription_status === "trialing";
+  // if (!isSubscribed) {
+  //   return (
+  //     <div className="app-shell">
+  //       <PaywallScreen onCheckout={handleCheckout} loading={checkingOut} />
+  //       {error ? <p className="status-error" data-testid="paywall-error">{error}</p> : null}
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="app-shell">
