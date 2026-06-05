@@ -557,6 +557,49 @@ export async function callClaudeProxy(
   };
 }
 
+export interface FollowUpResult {
+  has_task: boolean;
+  task_summary: string | null;
+  context: string;
+}
+
+export async function extractFollowUp(
+  session: Session,
+  conversationId: string | null,
+  messages: Array<{ role: string; content: string }>,
+): Promise<FollowUpResult> {
+  const { data, error } = await supabase.functions.invoke("extract-followup", {
+    body: { conversation_id: conversationId, messages },
+    headers: { Authorization: `Bearer ${session.access_token}` },
+  });
+
+  if (error || !data) return { has_task: false, task_summary: null, context: "" };
+  return data as FollowUpResult;
+}
+
+export async function getPendingFollowUp(userId: string): Promise<{ id: number; task_summary: string; context: string | null } | null> {
+  const { data, error } = await supabase
+    .from("follow_ups")
+    .select("id, task_summary, context")
+    .eq("user_id", userId)
+    .eq("status", "pending")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return data as { id: number; task_summary: string; context: string | null };
+}
+
+export async function resolveFollowUp(followUpId: number, status: "done" | "not_done"): Promise<void> {
+  const { error } = await supabase
+    .from("follow_ups")
+    .update({ status, resolved_at: new Date().toISOString() })
+    .eq("id", followUpId);
+
+  if (error) throw error;
+}
+
 export async function resetUserData(userId: string): Promise<void> {
   const { error: deleteMessagesError } = await supabase
     .from("messages")

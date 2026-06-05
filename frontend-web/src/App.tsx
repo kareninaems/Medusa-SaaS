@@ -20,9 +20,10 @@ import {
   createConversation,
   deleteUserDocument,
   ensureProfile,
-  getLatestAssistantMessage,
+  extractFollowUp,
+  getPendingFollowUp,
+  resolveFollowUp,
   getLatestConversation,
-  getPreviousConversation,
   getRecentMessagesByUser,
   grantDocumentAnalysisConsent,
   getMemory,
@@ -78,34 +79,8 @@ function hasCrisisSignal(text: string): boolean {
   return CRISIS_TERMS.some((term) => normalized.includes(term));
 }
 
-function normalizeText(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase();
-}
 
 
-function extractActionFromAssistant(content: string): string | null {
-  if (!content || content.includes("188 (CVV)")) return null;
-
-  const lines = content
-    .replace(/\*\*/g, "")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  if (lines.length === 0) return null;
-
-  const priority =
-    lines.find((line) => /^(\d+[\).]|[-•])\s+/.test(line)) ??
-    lines.find((line) => normalizeText(line).includes("proximo passo")) ??
-    lines[0];
-
-  const normalized = priority.replace(/^(\d+[\).]|[-•])\s+/, "").trim();
-  if (normalized.length < 12) return null;
-  return normalized.slice(0, 160);
-}
 
 function computeBurnoutSignals(recentMessages: Message[]): {
   isRisk: boolean;
@@ -235,6 +210,7 @@ function ProductApp() {
   const [memory, setMemory] = useState<MemoryRow | null>(null);
   const [recentSignals, setRecentSignals] = useState<Message[]>([]);
   const [followUpAction, setFollowUpAction] = useState<string | null>(null);
+  const [followUpId, setFollowUpId] = useState<number | null>(null);
   const [checkInEnergy, setCheckInEnergy] = useState<EnergyLevel | null>(null);
   const [checkInDone, setCheckInDone] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -310,15 +286,9 @@ function ProductApp() {
         getRecentMessagesByUser(activeSession.user.id, 7),
       ]);
 
-      const followUpSourceConversation = canReuseConversation
-        ? await getPreviousConversation(activeSession.user.id, latestConversation?.id ?? null)
-        : latestConversation;
-
-      let nextFollowUpAction: string | null = null;
-      if (followUpSourceConversation?.id) {
-        const latestAssistant = await getLatestAssistantMessage(followUpSourceConversation.id);
-        nextFollowUpAction = extractActionFromAssistant(latestAssistant?.content ?? "");
-      }
+      // Pull pending follow-up from DB (set by extract-followup Edge Function at end of session)
+      const pendingFollowUp = await getPendingFollowUp(activeSession.user.id);
+      const nextFollowUpAction = pendingFollowUp?.task_summary ?? null;
 
       setProfile(ensuredProfile);
       setConversation(canReuseConversation ? latestConversation : null);
@@ -327,6 +297,7 @@ function ProductApp() {
       setDocuments(loadedDocuments);
       setRecentSignals(loadedRecentSignals);
       setFollowUpAction(nextFollowUpAction);
+      setFollowUpId(pendingFollowUp?.id ?? null);
       setCheckInEnergy(null);
       setCheckInDone(canReuseConversation);
     } catch (bootstrapError) {
@@ -597,7 +568,15 @@ function ProductApp() {
         mode,
       });
 
-      setMessages((current) => [...current, assistantMessage]);
+      setMessages((current) => {
+        const updated = [...current, assistantMessage];
+        // Fire-and-forget: extract follow-up from full conversation after each reply
+        if (!followUpAction) {
+          const msgHistory = updated.map((m) => ({ role: m.role, content: m.content }));
+          extractFollowUp(session, conversation.id, msgHistory).catch(() => {});
+        }
+        return updated;
+      });
     } catch (chatError) {
       if (hasCrisisSignal(text)) {
         try {
@@ -643,9 +622,16 @@ function ProductApp() {
       }
     }
 
+    // Resolve follow-up in DB
+    if (followUpId) {
+      const status = answer === "sim" ? "done" : answer === "nao" ? "not_done" : null;
+      if (status) resolveFollowUp(followUpId, status).catch(() => {});
+    }
+
     const payload = `Follow-up de evidencia: ${answer}.\nAcao combinada: ${followUpAction}`;
     await handleSendMessage(payload);
     setFollowUpAction(null);
+    setFollowUpId(null);
   };
 
   const handleReset = async () => {
