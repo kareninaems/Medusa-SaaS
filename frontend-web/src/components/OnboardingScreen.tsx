@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import type { ProfileOnboarding } from "../types/medusa";
 
@@ -6,86 +6,129 @@ interface OnboardingScreenProps {
   loading?: boolean;
   uploadingDocument?: boolean;
   defaultName: string;
-  onUploadDocument: (file: File) => Promise<void>;
+  onUploadDocument: (files: File[]) => Promise<void>;
+  onAutoSave?: (partial: Partial<ProfileOnboarding>) => Promise<void>;
   onSave: (payload: { displayName: string; onboarding: ProfileOnboarding }) => Promise<void>;
 }
 
-const DAYS = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo", "Variável"];
-const PERIODS = ["Manhã", "Tarde", "Noite", "Madrugada", "Comercial", "Plantões/turnos", "Variável"];
-const GENDER_OPTIONS = ["Mulher", "Homem", "Não-binário", "Prefiro não informar", "Outro"];
-const EDUCATION_OPTIONS = [
-  "Ensino médio",
-  "Técnico",
-  "Graduação",
-  "Pós-graduação",
-  "Mestrado/Doutorado",
-  "Prefiro não informar",
-  "Outro",
-];
-const PROFESSION_OPTIONS = [
-  "Saúde",
-  "Educação",
-  "Tecnologia",
-  "Gestão/empreendedorismo",
-  "Estudante",
-  "Cuidado/família",
-  "Atendimento/serviços",
-  "Prefiro não informar",
-  "Outro",
-];
-const CONSTRAINT_OPTIONS = [
-  "Sono irregular",
-  "Plantões/turnos",
-  "Deslocamento longo",
-  "Filhos/cuidado de alguém",
-  "Estudos",
-  "Saúde",
-  "Carga sensorial alta",
-  "Carga emocional alta",
-  "Pouco tempo livre",
-  "Prefiro não informar",
-  "Outro",
-];
-const BLOCKER_OPTIONS = [
-  "Começar tarefas",
-  "Priorizar",
-  "Finalizar",
-  "Responder mensagens",
-  "Organizar casa",
-  "Tomar decisões",
-  "Medo de errar",
-  "Sobrecarga",
-  "Cansaço",
-  "Disforia/desânimo",
-  "Outro",
-];
-const LOW_ENERGY_OPTIONS = [
-  "Uma tarefa pequena",
-  "Pausa de 10 minutos",
-  "Água/comida",
-  "Sair do lugar",
-  "Lista curta",
-  "Silêncio",
-  "Movimento",
-  "Falar com alguém",
-  "Dormir/descansar",
-  "Outro",
-];
-const GUIDANCE_OPTIONS = ["Direta", "Acolhedora", "Técnica", "Mínima", "Passo a passo", "Sem rodeios"];
-const LIMIT_OPTIONS = [
-  "Não usar culpa",
-  "Não dar muitas opções",
-  "Não falar como terapeuta",
-  "Não minimizar sentimento",
-  "Não ser agressiva",
-  "Não fazer texto longo",
-  "Não insistir quando eu estiver sem energia",
-  "Outro",
-];
-const TOTAL_STEPS = 8;
+const TOTAL_BLOCKS = 5;
 
-function toggleValue(current: string[], value: string) {
+const IDENTIFICATION_OPTIONS = [
+  "TDAH",
+  "Autismo (TEA)",
+  "Dislexia",
+  "Altas Habilidades/Superdotação",
+  "Prefiro não dizer",
+  "Ainda estou me descobrindo",
+  "Outro",
+];
+
+const DIAGNOSIS_TIME_OPTIONS = [
+  "Menos de 1 ano",
+  "1 a 3 anos",
+  "Mais de 3 anos",
+  "Ainda não tenho certeza",
+];
+
+const IN_TREATMENT_OPTIONS: { label: string; value: "sim" | "nao" | "prefiro nao responder" }[] = [
+  { label: "Sim", value: "sim" },
+  { label: "Não", value: "nao" },
+  { label: "Prefiro não responder", value: "prefiro nao responder" },
+];
+
+const DAILY_DIFFICULTIES_OPTIONS = [
+  "Iniciar tarefas (procrastinação)",
+  "Manter o foco em uma coisa só",
+  "Gerenciar tempo e prazos",
+  "Lidar com interrupções ou mudanças de plano",
+  "Organizar espaços e objetos físicos",
+  "Organizar pensamentos e ideias",
+  "Cansaço mental excessivo",
+  "Sobrecarga sensorial (barulho, luz, texturas)",
+  "Esquecimentos frequentes",
+  "Paralisia diante de muitas opções",
+  "Comunicação social",
+  "Outro",
+];
+
+const INSTRUCTION_PREFERENCE_OPTIONS = [
+  "Um passo de cada vez, bem detalhado",
+  "Visão geral primeiro, depois os detalhes",
+  "Apenas o essencial, sem excesso",
+  "Prefiro exemplos ou analogias",
+];
+
+const DEADLINE_REACTION_OPTIONS = [
+  "Me motivo, mas deixo para a última hora",
+  "Me paraliso, preciso de ajuda para dividir",
+  "Ignoro se não forem rígidos",
+  "Funciono bem com lembretes externos",
+];
+
+const REMINDER_STYLE_OPTIONS = [
+  "Gentilmente, com opção de escolha",
+  "Direto ao ponto, sem rodeios",
+  "Com humor e leveza",
+  "Prefiro não ser cobrado(a)",
+];
+
+const BLOCKERS_OPTIONS = [
+  "Muitas tarefas ao mesmo tempo",
+  "Falta de instruções claras",
+  "Ambientes barulhentos ou caóticos",
+  "Medo de errar ou perfeccionismo",
+  "Críticas ou pressão externa",
+  "Não saber por onde começar",
+  "Cansaço acumulado",
+];
+
+const UNBLOCKERS_OPTIONS = [
+  "Dividir a tarefa em micro passos",
+  "Ter alguém por perto em silêncio (body double)",
+  "Música ou fones de ouvido",
+  "Recompensa imediata ao terminar",
+  "Um empurrãozinho gentil",
+  "Silêncio e ambiente escuro",
+  "Mexer o corpo ou mudar de ambiente",
+  "Outro",
+];
+
+const ENERGY_PERIOD_OPTIONS = ["Manhã", "Tarde", "Noite", "Varia muito"];
+
+const MEDUSA_GOALS_OPTIONS = [
+  "Ajuda para organizar o dia",
+  "Suporte para momentos de travamento",
+  "Estratégias para lidar com meu jeito de funcionar",
+  "Um espaço seguro para desabafar",
+  "Lembretes e acompanhamento gentil",
+  "Apenas entender melhor como eu funciono",
+];
+
+function toggleValue(current: string[], value: string): string[] {
   return current.includes(value) ? current.filter((item) => item !== value) : [...current, value];
+}
+
+function Chip({
+  label,
+  active,
+  onClick,
+  testId,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  testId?: string;
+}) {
+  return (
+    <button
+      type="button"
+      data-testid={testId}
+      className={`chip ${active ? "chip-active" : ""}`}
+      onClick={onClick}
+    >
+      {label}
+    </button>
+  );
 }
 
 export function OnboardingScreen({
@@ -93,518 +136,462 @@ export function OnboardingScreen({
   uploadingDocument = false,
   defaultName,
   onUploadDocument,
+  onAutoSave,
   onSave,
 }: OnboardingScreenProps) {
-  const [step, setStep] = useState(0);
-  const [displayName, setDisplayName] = useState(defaultName);
-  const [gender, setGender] = useState("Prefiro não informar");
-  const [genderOther, setGenderOther] = useState("");
-  const [educationLevel, setEducationLevel] = useState("Graduação");
-  const [educationOther, setEducationOther] = useState("");
-  const [professionCategory, setProfessionCategory] = useState("Tecnologia");
-  const [professionOther, setProfessionOther] = useState("");
-
-  const [days, setDays] = useState<string[]>(["Segunda", "Terça", "Quarta", "Quinta", "Sexta"]);
-  const [periods, setPeriods] = useState<string[]>(["Comercial"]);
-  const [routineNotes, setRoutineNotes] = useState("");
-
-  const [constraints, setConstraints] = useState<string[]>([]);
-  const [constraintsOther, setConstraintsOther] = useState("");
-
-  const [blockers, setBlockers] = useState<string[]>([]);
-  const [blockersOther, setBlockersOther] = useState("");
-
-  const [lowEnergyWorks, setLowEnergyWorks] = useState<string[]>([]);
-  const [lowEnergyOther, setLowEnergyOther] = useState("");
-
-  const [guidanceStyle, setGuidanceStyle] = useState("Direta");
-
-  const [neverDo, setNeverDo] = useState<string[]>(["Não usar culpa"]);
-  const [neverDoOther, setNeverDoOther] = useState("");
-
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploadStatus, setUploadStatus] = useState("");
+  const [currentBlock, setCurrentBlock] = useState(0);
   const [error, setError] = useState("");
 
-  const canGoNext = useMemo(() => {
-    if (step === 0) {
-      if (!displayName.trim() || !gender) return false;
-      if (gender === "Outro" && !genderOther.trim()) return false;
-      return true;
-    }
-    if (step === 1) {
-      if (!educationLevel || !professionCategory) return false;
-      if (educationLevel === "Outro" && !educationOther.trim()) return false;
-      if (professionCategory === "Outro" && !professionOther.trim()) return false;
-      return true;
-    }
-    if (step === 2) {
-      return days.length > 0 && periods.length > 0;
-    }
-    if (step === 3) {
-      if (constraints.length === 0) return false;
-      if (constraints.includes("Outro") && !constraintsOther.trim()) return false;
-      return true;
-    }
-    if (step === 4) {
-      if (blockers.length === 0) return false;
-      if (blockers.includes("Outro") && !blockersOther.trim()) return false;
-      return true;
-    }
-    if (step === 5) {
-      if (lowEnergyWorks.length === 0) return false;
-      if (lowEnergyWorks.includes("Outro") && !lowEnergyOther.trim()) return false;
-      return true;
-    }
-    if (step === 6) {
-      return !!guidanceStyle;
-    }
-    if (step === 7) {
-      if (neverDo.length === 0) return false;
-      if (neverDo.includes("Outro") && !neverDoOther.trim()) return false;
-      return true;
-    }
-    return false;
-  }, [
-    blockers,
-    blockersOther,
-    constraints,
-    constraintsOther,
-    days.length,
-    displayName,
-    gender,
-    genderOther,
-    educationLevel,
-    educationOther,
-    guidanceStyle,
-    lowEnergyOther,
-    lowEnergyWorks,
-    neverDo,
-    neverDoOther,
-    periods.length,
-    professionCategory,
-    professionOther,
-    step,
-  ]);
+  // Block A
+  const [name, setName] = useState(defaultName);
+  const [identifications, setIdentifications] = useState<string[]>([]);
+  const [identificationOther, setIdentificationOther] = useState("");
+  const [diagnosisTime, setDiagnosisTime] = useState<string | null>(null);
+  const [inTreatment, setInTreatment] = useState<"sim" | "nao" | "prefiro nao responder" | null>(null);
 
-  const uploadSelectedDocument = async () => {
-    if (!selectedFile) {
-      setUploadStatus("Selecione um PDF antes de enviar.");
+  // Block B
+  const [dailyDifficulties, setDailyDifficulties] = useState<string[]>([]);
+
+  // Block C
+  const [instructionPreference, setInstructionPreference] = useState<string | null>(null);
+  const [deadlineReaction, setDeadlineReaction] = useState<string | null>(null);
+  const [reminderStyle, setReminderStyle] = useState<string | null>(null);
+
+  // Block D
+  const [blockers, setBlockers] = useState<string[]>([]);
+  const [unblockers, setUnblockers] = useState<string[]>([]);
+  const [unblockerOther, setUnblockerOther] = useState("");
+
+  // Block E
+  const [energyPeriod, setEnergyPeriod] = useState<string | null>(null);
+  const [medusaGoals, setMedusaGoals] = useState<string[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadConsent, setUploadConsent] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState("");
+
+  const progressPercent = (currentBlock / TOTAL_BLOCKS) * 100;
+
+  const canGoNextBlockA = name.trim().length > 0;
+
+  const buildOnboarding = (): ProfileOnboarding => ({
+    name: name.trim() || defaultName,
+    identifications,
+    identification_other: identifications.includes("Outro") ? identificationOther.trim() || null : null,
+    diagnosis_time: diagnosisTime,
+    in_treatment: inTreatment,
+    daily_difficulties: dailyDifficulties,
+    instruction_preference: instructionPreference,
+    deadline_reaction: deadlineReaction,
+    reminder_style: reminderStyle,
+    blockers,
+    unblockers,
+    unblocker_other: unblockers.includes("Outro") ? unblockerOther.trim() || null : null,
+    energy_period: energyPeriod,
+    medusa_goals: medusaGoals,
+  });
+
+  const autoSave = async (partial: Partial<ProfileOnboarding>) => {
+    if (onAutoSave) {
+      try {
+        await onAutoSave(partial);
+      } catch {
+        // fire-and-forget, don't block UX
+      }
+    }
+  };
+
+  const handleNext = async () => {
+    if (currentBlock === 0 && !canGoNextBlockA) {
+      setError("Por favor, diga como quer ser chamado(a).");
       return;
     }
+    setError("");
 
+    if (currentBlock === 0) {
+      await autoSave({ name: name.trim(), identifications, diagnosis_time: diagnosisTime, in_treatment: inTreatment });
+    } else if (currentBlock === 1) {
+      await autoSave({ daily_difficulties: dailyDifficulties });
+    } else if (currentBlock === 2) {
+      await autoSave({ instruction_preference: instructionPreference, deadline_reaction: deadlineReaction, reminder_style: reminderStyle });
+    } else if (currentBlock === 3) {
+      await autoSave({ blockers, unblockers, unblocker_other: unblockerOther.trim() || null });
+    }
+
+    setCurrentBlock((prev) => Math.min(prev + 1, TOTAL_BLOCKS - 1));
+  };
+
+  const handleBack = () => {
+    setError("");
+    setCurrentBlock((prev) => Math.max(prev - 1, 0));
+  };
+
+  const handleSkip = async () => {
+    setError("");
+    setCurrentBlock((prev) => Math.min(prev + 1, TOTAL_BLOCKS - 1));
+  };
+
+  const handleFinish = async () => {
+    setError("");
+    const onboarding = buildOnboarding();
+    await onSave({ displayName: name.trim() || defaultName, onboarding });
+  };
+
+  const handleUploadFiles = async () => {
+    if (selectedFiles.length === 0 || !uploadConsent) return;
     setUploadStatus("");
     try {
-      await onUploadDocument(selectedFile);
-      setSelectedFile(null);
-      setUploadStatus("PDF enviado com sucesso. Extração permanece pendente no MVP.");
+      await onUploadDocument(selectedFiles);
+      setSelectedFiles([]);
+      setUploadStatus("Documento(s) enviado(s) com sucesso!");
     } catch (uploadError) {
-      const uploadMessage = uploadError instanceof Error ? uploadError.message : "Não foi possível enviar o PDF agora.";
-      setUploadStatus(uploadMessage);
+      const msg = uploadError instanceof Error ? uploadError.message : "Não foi possível enviar os arquivos agora.";
+      setUploadStatus(msg);
     }
   };
 
-  const saveOnboarding = async () => {
-    setError("");
-
-    if (!canGoNext) {
-      setError("Preencha esta etapa para continuar.");
-      return;
-    }
-
-    await onSave({
-      displayName: displayName.trim() || defaultName,
-      onboarding: {
-        gender,
-        gender_other: gender === "Outro" ? genderOther.trim() : null,
-        education_level: educationLevel,
-        education_level_other: educationLevel === "Outro" ? educationOther.trim() : null,
-        profession_category: professionCategory,
-        profession_other: professionCategory === "Outro" ? professionOther.trim() : null,
-        constraints,
-        constraints_other: constraints.includes("Outro") ? constraintsOther.trim() : null,
-        blockers,
-        blockers_other: blockers.includes("Outro") ? blockersOther.trim() : null,
-        low_energy_works: lowEnergyWorks,
-        low_energy_works_other: lowEnergyWorks.includes("Outro") ? lowEnergyOther.trim() : null,
-        guidance_style: guidanceStyle,
-        never_do: neverDo,
-        never_do_other: neverDo.includes("Outro") ? neverDoOther.trim() : null,
-        routine: {
-          days,
-          periods,
-          notes: routineNotes.trim(),
-        },
-      },
-    });
-  };
-
-  const nextStep = () => {
-    if (!canGoNext) {
-      setError("Preencha esta etapa para continuar.");
-      return;
-    }
-    setError("");
-    setStep((current) => Math.min(current + 1, TOTAL_STEPS - 1));
-  };
-
-  const prevStep = () => {
-    setError("");
-    setStep((current) => Math.max(current - 1, 0));
-  };
-
-  const renderStep = () => {
-    if (step === 0) {
+  const renderBlock = () => {
+    // Block A — Identidade
+    if (currentBlock === 0) {
       return (
-        <>
-          <h2>Como você quer ser chamada(o)?</h2>
+        <div data-testid="onboarding-block-a">
+          <h2>Oi! Vamos começar do jeito certo pra você 💜</h2>
+          <p className="muted">Algumas perguntas rápidas para a Medusa te conhecer melhor.</p>
+
           <label className="field">
-            <span>Nome de exibição</span>
+            <span>Como quer ser chamado(a)?</span>
             <input
-              data-testid="onboarding-display-name-input"
+              data-testid="onboarding-name-input"
               className="input"
-              value={displayName}
-              onChange={(event) => setDisplayName(event.target.value)}
-              placeholder="Seu nome no app"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Seu nome aqui"
             />
           </label>
-          <label className="field">
-            <span>Gênero</span>
-            <select
-              data-testid="onboarding-gender-select"
-              className="input"
-              value={gender}
-              onChange={(event) => setGender(event.target.value)}
-            >
-              {GENDER_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
+
+          <fieldset className="field">
+            <legend>Como você se identifica? (pode marcar mais de um)</legend>
+            <div className="chips-wrap">
+              {IDENTIFICATION_OPTIONS.map((option) => (
+                <Chip
+                  key={option}
+                  label={option}
+                  active={identifications.includes(option)}
+                  onClick={() => setIdentifications((prev) => toggleValue(prev, option))}
+                />
               ))}
-            </select>
-          </label>
-          {gender === "Outro" ? (
-            <label className="field">
-              <span>Outro (gênero)</span>
-              <input
-                data-testid="onboarding-gender-other-input"
-                className="input"
-                value={genderOther}
-                onChange={(event) => setGenderOther(event.target.value)}
-                placeholder="Descreva em poucas palavras"
-              />
-            </label>
-          ) : null}
-        </>
-      );
-    }
+            </div>
+            {identifications.includes("Outro") && (
+              <label className="field">
+                <span>Qual identificação?</span>
+                <input
+                  className="input"
+                  value={identificationOther}
+                  onChange={(e) => setIdentificationOther(e.target.value)}
+                  placeholder="Descreva brevemente"
+                />
+              </label>
+            )}
+          </fieldset>
 
-    if (step === 1) {
-      return (
-        <>
-          <h2>Identidade e contexto</h2>
-          <label className="field">
-            <span>Escolaridade</span>
-            <select
-              data-testid="onboarding-education-select"
-              className="input"
-              value={educationLevel}
-              onChange={(event) => setEducationLevel(event.target.value)}
-            >
-              {EDUCATION_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
+          <fieldset className="field">
+            <legend>Há quanto tempo você sabe ou suspeita?</legend>
+            <div className="chips-wrap">
+              {DIAGNOSIS_TIME_OPTIONS.map((option) => (
+                <Chip
+                  key={option}
+                  label={option}
+                  active={diagnosisTime === option}
+                  onClick={() => setDiagnosisTime(option === diagnosisTime ? null : option)}
+                />
               ))}
-            </select>
-          </label>
-          {educationLevel === "Outro" ? (
-            <label className="field">
-              <span>Outro (escolaridade)</span>
-              <input
-                data-testid="onboarding-education-other-input"
-                className="input"
-                value={educationOther}
-                onChange={(event) => setEducationOther(event.target.value)}
-                placeholder="Descreva em poucas palavras"
-              />
-            </label>
-          ) : null}
-          <label className="field">
-            <span>Profissão/ocupação</span>
-            <select
-              data-testid="onboarding-profession-select"
-              className="input"
-              value={professionCategory}
-              onChange={(event) => setProfessionCategory(event.target.value)}
-            >
-              {PROFESSION_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
+            </div>
+          </fieldset>
+
+          <fieldset className="field">
+            <legend>Você está em acompanhamento profissional?</legend>
+            <div className="chips-wrap">
+              {IN_TREATMENT_OPTIONS.map((option) => (
+                <Chip
+                  key={option.value}
+                  label={option.label}
+                  active={inTreatment === option.value}
+                  onClick={() => setInTreatment(inTreatment === option.value ? null : option.value)}
+                />
               ))}
-            </select>
-          </label>
-          {professionCategory === "Outro" ? (
-            <label className="field">
-              <span>Outro (profissão/ocupação)</span>
-              <input
-                data-testid="onboarding-profession-other-input"
-                className="input"
-                value={professionOther}
-                onChange={(event) => setProfessionOther(event.target.value)}
-                placeholder="Descreva em poucas palavras"
-              />
-            </label>
-          ) : null}
-        </>
-      );
-    }
-
-    if (step === 2) {
-      return (
-        <>
-          <h2>Rotina</h2>
-          <p className="muted">Selecione dias e períodos mais comuns.</p>
-          <div className="chips-wrap">
-            {DAYS.map((day) => (
-              <button
-                type="button"
-                key={day}
-                data-testid={`onboarding-day-chip-${day.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-                className={`chip ${days.includes(day) ? "chip-active" : ""}`}
-                onClick={() => setDays((current) => toggleValue(current, day))}
-              >
-                {day}
-              </button>
-            ))}
-          </div>
-          <div className="chips-wrap">
-            {PERIODS.map((period) => (
-              <button
-                type="button"
-                key={period}
-                data-testid={`onboarding-period-chip-${period.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-                className={`chip ${periods.includes(period) ? "chip-active" : ""}`}
-                onClick={() => setPeriods((current) => toggleValue(current, period))}
-              >
-                {period}
-              </button>
-            ))}
-          </div>
-          <label className="field">
-            <span>Alguma observação da rotina? (opcional)</span>
-            <input
-              data-testid="onboarding-routine-notes-input"
-              className="input"
-              value={routineNotes}
-              onChange={(event) => setRoutineNotes(event.target.value)}
-              placeholder="Ex: tardes com mais reuniões"
-            />
-          </label>
-        </>
-      );
-    }
-
-    if (step === 3) {
-      return (
-        <>
-          <h2>Restrições</h2>
-          <div className="chips-wrap">
-            {CONSTRAINT_OPTIONS.map((option) => (
-              <button
-                type="button"
-                key={option}
-                data-testid={`onboarding-constraint-chip-${option.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-                className={`chip ${constraints.includes(option) ? "chip-active" : ""}`}
-                onClick={() => setConstraints((current) => toggleValue(current, option))}
-              >
-                {option}
-              </button>
-            ))}
-          </div>
-          {constraints.includes("Outro") ? (
-            <label className="field">
-              <span>Outro (restrições)</span>
-              <input
-                data-testid="onboarding-constraints-other-input"
-                className="input"
-                value={constraintsOther}
-                onChange={(event) => setConstraintsOther(event.target.value)}
-                placeholder="Descreva em poucas palavras"
-              />
-            </label>
-          ) : null}
-        </>
-      );
-    }
-
-    if (step === 4) {
-      return (
-        <>
-          <h2>Travas</h2>
-          <div className="chips-wrap">
-            {BLOCKER_OPTIONS.map((option) => (
-              <button
-                type="button"
-                key={option}
-                data-testid={`onboarding-blocker-chip-${option.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-                className={`chip ${blockers.includes(option) ? "chip-active" : ""}`}
-                onClick={() => setBlockers((current) => toggleValue(current, option))}
-              >
-                {option}
-              </button>
-            ))}
-          </div>
-          {blockers.includes("Outro") ? (
-            <label className="field">
-              <span>Outro (travas)</span>
-              <input
-                data-testid="onboarding-blockers-other-input"
-                className="input"
-                value={blockersOther}
-                onChange={(event) => setBlockersOther(event.target.value)}
-                placeholder="Descreva em poucas palavras"
-              />
-            </label>
-          ) : null}
-        </>
-      );
-    }
-
-    if (step === 5) {
-      return (
-        <>
-          <h2>Energia baixa</h2>
-          <div className="chips-wrap">
-            {LOW_ENERGY_OPTIONS.map((option) => (
-              <button
-                type="button"
-                key={option}
-                data-testid={`onboarding-low-energy-chip-${option.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-                className={`chip ${lowEnergyWorks.includes(option) ? "chip-active" : ""}`}
-                onClick={() => setLowEnergyWorks((current) => toggleValue(current, option))}
-              >
-                {option}
-              </button>
-            ))}
-          </div>
-          {lowEnergyWorks.includes("Outro") ? (
-            <label className="field">
-              <span>Outro (energia baixa)</span>
-              <input
-                data-testid="onboarding-low-energy-other-input"
-                className="input"
-                value={lowEnergyOther}
-                onChange={(event) => setLowEnergyOther(event.target.value)}
-                placeholder="Descreva em poucas palavras"
-              />
-            </label>
-          ) : null}
-        </>
-      );
-    }
-
-    if (step === 6) {
-      return (
-        <>
-          <h2>Estilo de orientação</h2>
-          <div className="chips-wrap">
-            {GUIDANCE_OPTIONS.map((option) => (
-              <button
-                type="button"
-                key={option}
-                data-testid={`onboarding-guidance-chip-${option.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-                className={`chip ${guidanceStyle === option ? "chip-active" : ""}`}
-                onClick={() => setGuidanceStyle(option)}
-              >
-                {option}
-              </button>
-            ))}
-          </div>
-        </>
-      );
-    }
-
-    return (
-      <>
-        <h2>Limites da Medusa + PDF opcional</h2>
-        <div className="chips-wrap">
-          {LIMIT_OPTIONS.map((option) => (
-            <button
-              type="button"
-              key={option}
-                data-testid={`onboarding-limit-chip-${option.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-              className={`chip ${neverDo.includes(option) ? "chip-active" : ""}`}
-              onClick={() => setNeverDo((current) => toggleValue(current, option))}
-            >
-              {option}
-            </button>
-          ))}
+            </div>
+          </fieldset>
         </div>
-        {neverDo.includes("Outro") ? (
-          <label className="field">
-            <span>Outro (limites)</span>
-            <input
-              data-testid="onboarding-limits-other-input"
-              className="input"
-              value={neverDoOther}
-              onChange={(event) => setNeverDoOther(event.target.value)}
-              placeholder="Descreva em poucas palavras"
-            />
-          </label>
-        ) : null}
+      );
+    }
+
+    // Block B — Funcionamento executivo
+    if (currentBlock === 1) {
+      return (
+        <div data-testid="onboarding-block-b">
+          <h2>Funcionamento executivo</h2>
+          <p className="muted">Quais são suas maiores dificuldades no dia a dia? (pode marcar mais de um)</p>
+          <div className="chips-wrap">
+            {DAILY_DIFFICULTIES_OPTIONS.map((option) => (
+              <Chip
+                key={option}
+                label={option}
+                active={dailyDifficulties.includes(option)}
+                onClick={() => setDailyDifficulties((prev) => toggleValue(prev, option))}
+              />
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // Block C — Estilo de processamento
+    if (currentBlock === 2) {
+      return (
+        <div data-testid="onboarding-block-c">
+          <h2>Estilo de processamento</h2>
+
+          <fieldset className="field">
+            <legend>Quando você recebe muitas instruções, prefere:</legend>
+            <div className="chips-wrap">
+              {INSTRUCTION_PREFERENCE_OPTIONS.map((option) => (
+                <Chip
+                  key={option}
+                  label={option}
+                  active={instructionPreference === option}
+                  onClick={() => setInstructionPreference(instructionPreference === option ? null : option)}
+                />
+              ))}
+            </div>
+          </fieldset>
+
+          <fieldset className="field">
+            <legend>Como você reage a prazos?</legend>
+            <div className="chips-wrap">
+              {DEADLINE_REACTION_OPTIONS.map((option) => (
+                <Chip
+                  key={option}
+                  label={option}
+                  active={deadlineReaction === option}
+                  onClick={() => setDeadlineReaction(deadlineReaction === option ? null : option)}
+                />
+              ))}
+            </div>
+          </fieldset>
+
+          <fieldset className="field">
+            <legend>Como prefere ser lembrado(a)?</legend>
+            <div className="chips-wrap">
+              {REMINDER_STYLE_OPTIONS.map((option) => (
+                <Chip
+                  key={option}
+                  label={option}
+                  active={reminderStyle === option}
+                  onClick={() => setReminderStyle(reminderStyle === option ? null : option)}
+                />
+              ))}
+            </div>
+          </fieldset>
+        </div>
+      );
+    }
+
+    // Block D — Gatilhos e desbloqueadores
+    if (currentBlock === 3) {
+      return (
+        <div data-testid="onboarding-block-d">
+          <h2>Gatilhos e desbloqueadores</h2>
+
+          <fieldset className="field">
+            <legend>O que costuma te travar? (pode marcar mais de um)</legend>
+            <div className="chips-wrap">
+              {BLOCKERS_OPTIONS.map((option) => (
+                <Chip
+                  key={option}
+                  label={option}
+                  active={blockers.includes(option)}
+                  onClick={() => setBlockers((prev) => toggleValue(prev, option))}
+                />
+              ))}
+            </div>
+          </fieldset>
+
+          <fieldset className="field">
+            <legend>O que costuma te ajudar a destravar? (pode marcar mais de um)</legend>
+            <div className="chips-wrap">
+              {UNBLOCKERS_OPTIONS.map((option) => (
+                <Chip
+                  key={option}
+                  label={option}
+                  active={unblockers.includes(option)}
+                  onClick={() => setUnblockers((prev) => toggleValue(prev, option))}
+                />
+              ))}
+            </div>
+            {unblockers.includes("Outro") && (
+              <label className="field">
+                <span>O que mais te ajuda?</span>
+                <input
+                  className="input"
+                  value={unblockerOther}
+                  onChange={(e) => setUnblockerOther(e.target.value)}
+                  placeholder="Descreva brevemente"
+                />
+              </label>
+            )}
+          </fieldset>
+        </div>
+      );
+    }
+
+    // Block E — Rotina, objetivos e documentos
+    return (
+      <div data-testid="onboarding-block-e">
+        <h2>Rotina, objetivos e documentos</h2>
+
+        <fieldset className="field">
+          <legend>Em que período do dia você tem mais energia?</legend>
+          <div className="chips-wrap">
+            {ENERGY_PERIOD_OPTIONS.map((option) => (
+              <Chip
+                key={option}
+                label={option}
+                active={energyPeriod === option}
+                onClick={() => setEnergyPeriod(energyPeriod === option ? null : option)}
+              />
+            ))}
+          </div>
+        </fieldset>
+
+        <fieldset className="field">
+          <legend>O que você espera da Medusa? (pode marcar mais de um)</legend>
+          <div className="chips-wrap">
+            {MEDUSA_GOALS_OPTIONS.map((option) => (
+              <Chip
+                key={option}
+                label={option}
+                active={medusaGoals.includes(option)}
+                onClick={() => setMedusaGoals((prev) => toggleValue(prev, option))}
+              />
+            ))}
+          </div>
+        </fieldset>
 
         <div className="onboarding-upload-box">
           <p className="muted">
-            Adicionar PDF ou laudo (opcional). Use apenas se quiser que a Medusa considere um documento seu. Evite enviar
-            documentos de terceiros.
+            Se quiser, envie um laudo ou documento clínico (PDF, JPG ou PNG). Isso é completamente opcional — serve
+            apenas para a Medusa te conhecer melhor.
           </p>
           <input
-            data-testid="onboarding-pdf-input"
+            data-testid="onboarding-file-input"
             className="input"
             type="file"
-            accept="application/pdf"
-            onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
+            multiple
+            accept=".pdf,.jpg,.jpeg,.png"
+            onChange={(e) => setSelectedFiles(e.target.files ? Array.from(e.target.files) : [])}
           />
+          {selectedFiles.length > 0 && (
+            <ul className="file-list">
+              {selectedFiles.map((file) => (
+                <li key={file.name}>{file.name}</li>
+              ))}
+            </ul>
+          )}
+          <label className="check-row">
+            <input
+              type="checkbox"
+              checked={uploadConsent}
+              onChange={(e) => setUploadConsent(e.target.checked)}
+              data-testid="onboarding-upload-consent-checkbox"
+            />
+            <span>Autorizo a Medusa a analisar este(s) documento(s) para personalizar minha experiência.</span>
+          </label>
           <button
-            data-testid="onboarding-upload-pdf-button"
+            data-testid="onboarding-upload-files-button"
             type="button"
             className="ghost-btn"
-            onClick={uploadSelectedDocument}
-            disabled={uploadingDocument}
+            onClick={handleUploadFiles}
+            disabled={uploadingDocument || selectedFiles.length === 0 || !uploadConsent}
           >
-            {uploadingDocument ? "Enviando PDF..." : "Enviar PDF"}
+            {uploadingDocument ? "Enviando..." : "Enviar documento(s)"}
           </button>
-          {uploadStatus ? <p className="status-ok" data-testid="onboarding-upload-status">{uploadStatus}</p> : null}
+          {uploadStatus && (
+            <p className="status-ok" data-testid="onboarding-upload-status">
+              {uploadStatus}
+            </p>
+          )}
         </div>
-      </>
+      </div>
     );
   };
+
+  const isLastBlock = currentBlock === TOTAL_BLOCKS - 1;
+  const isFirstBlock = currentBlock === 0;
+  const canSkip = currentBlock > 0;
 
   return (
     <div className="screen onboarding-screen" data-testid="onboarding-screen">
       <div className="screen-header">
         <p className="eyebrow">Onboarding</p>
         <p className="muted">
-          {step + 1} de {TOTAL_STEPS}
+          {currentBlock + 1} de {TOTAL_BLOCKS}
         </p>
       </div>
 
+      <div className="onboarding-progress-bar" data-testid="onboarding-progress-bar">
+        <div
+          className="onboarding-progress-fill"
+          style={{ width: `${progressPercent}%` }}
+          data-testid="onboarding-progress-fill"
+        />
+      </div>
+
       <div className="stack onboarding-wizard" data-testid="onboarding-wizard">
-        {renderStep()}
-        {error ? <p className="status-error" data-testid="onboarding-error-message">{error}</p> : null}
+        {renderBlock()}
+
+        {error && (
+          <p className="status-error" data-testid="onboarding-error-message">
+            {error}
+          </p>
+        )}
+
         <div className="wizard-actions">
-          <button data-testid="onboarding-back-button" className="ghost-btn" onClick={prevStep} disabled={step === 0 || loading}>
+          <button
+            data-testid="onboarding-back-button"
+            className="ghost-btn"
+            onClick={handleBack}
+            disabled={isFirstBlock || loading}
+          >
             Voltar
           </button>
-          {step < TOTAL_STEPS - 1 ? (
-            <button data-testid="onboarding-continue-button" className="primary-btn" onClick={nextStep} disabled={loading}>
-              Continuar
+
+          {canSkip && !isLastBlock && (
+            <button
+              data-testid="onboarding-skip-button"
+              className="ghost-btn"
+              onClick={handleSkip}
+              disabled={loading}
+            >
+              Pular
+            </button>
+          )}
+
+          {isLastBlock ? (
+            <button
+              data-testid="onboarding-submit-button"
+              className="primary-btn"
+              onClick={handleFinish}
+              disabled={loading}
+            >
+              {loading ? "Salvando..." : "Começar"}
             </button>
           ) : (
-            <button data-testid="onboarding-save-button" className="primary-btn" onClick={saveOnboarding} disabled={loading}>
-              {loading ? "Salvando" : "Salvar onboarding"}
+            <button
+              data-testid="onboarding-next-button"
+              className="primary-btn"
+              onClick={handleNext}
+              disabled={loading || (currentBlock === 0 && !canGoNextBlockA)}
+            >
+              Próximo
             </button>
           )}
         </div>

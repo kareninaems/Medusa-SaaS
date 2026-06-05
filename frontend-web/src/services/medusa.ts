@@ -164,18 +164,27 @@ export async function confirmAge(userId: string, supportsAgeColumns: boolean): P
   return fallbackData as Profile;
 }
 
+const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/png"];
+
+function getFileExtension(mimeType: string): string {
+  if (mimeType === "image/jpeg") return ".jpg";
+  if (mimeType === "image/png") return ".png";
+  return ".pdf";
+}
+
 export async function uploadUserDocument(userId: string, file: File): Promise<UserDocument> {
-  if (!file || file.type !== "application/pdf") {
-    throw new Error("Envie apenas arquivo PDF.");
+  if (!file || !ALLOWED_TYPES.includes(file.type)) {
+    throw new Error("Envie apenas PDF, JPG ou PNG.");
   }
 
   const generatedId = generateDocumentId();
-  const filePath = `${userId}/${generatedId}.pdf`;
+  const ext = getFileExtension(file.type);
+  const filePath = `${userId}/${generatedId}${ext}`;
 
   const { error: uploadError } = await supabase.storage
     .from("user-documents")
     .upload(filePath, file, {
-      contentType: "application/pdf",
+      contentType: file.type,
       upsert: false,
     });
 
@@ -199,6 +208,15 @@ export async function uploadUserDocument(userId: string, file: File): Promise<Us
     throw mapDocumentUploadError(error);
   }
   return normalizeUserDocument(data as Record<string, unknown>);
+}
+
+export async function uploadUserDocuments(userId: string, files: File[]): Promise<UserDocument[]> {
+  const results: UserDocument[] = [];
+  for (const file of files) {
+    const doc = await uploadUserDocument(userId, file);
+    results.push(doc);
+  }
+  return results;
 }
 
 export async function listUserDocuments(userId: string): Promise<UserDocument[]> {

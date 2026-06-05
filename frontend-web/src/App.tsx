@@ -36,7 +36,7 @@ import {
   sendLoopFeedback,
   updateEnergy,
   updateOnboarding,
-  uploadUserDocument,
+  uploadUserDocuments,
 } from "./services/medusa";
 import type {
   Conversation,
@@ -228,22 +228,8 @@ function ProductApp() {
 
   const onboardingMissing = useMemo(() => {
     if (!profile?.onboarding) return true;
-
-    const hasArray = (value: unknown) => Array.isArray(value) && value.length > 0;
-    const routineDays = profile.onboarding.routine?.days;
-    const routinePeriods = profile.onboarding.routine?.periods;
-
-    return (
-      !profile.onboarding.education_level ||
-      !profile.onboarding.profession_category ||
-      !hasArray(profile.onboarding.constraints) ||
-      !hasArray(profile.onboarding.blockers) ||
-      !hasArray(profile.onboarding.low_energy_works) ||
-      !profile.onboarding.guidance_style ||
-      !hasArray(profile.onboarding.never_do) ||
-      !hasArray(routineDays) ||
-      !hasArray(routinePeriods)
-    );
+    // New onboarding: only requires name from Block A
+    return !profile.onboarding.name && !profile.onboarding.display_name;
   }, [profile]);
 
   const needsAgeConfirmation = useMemo(() => {
@@ -444,13 +430,14 @@ function ProductApp() {
     }
   };
 
-  const handleUploadDocument = async (file: File) => {
+  const handleUploadDocument = async (files: File[]) => {
     if (!session) return;
     setUploadingDocument(true);
     setError("");
     try {
-      const createdDocument = await uploadUserDocument(session.user.id, file);
-      setDocuments((current) => [createdDocument, ...current]);
+      const fileArray = files;
+      const createdDocuments = await uploadUserDocuments(session.user.id, fileArray);
+      setDocuments((current) => [...createdDocuments, ...current]);
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Falha no upload do documento");
       throw uploadError;

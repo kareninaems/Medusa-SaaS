@@ -2,29 +2,51 @@ export type EnergyLevel = 1 | 2 | 3;
 export type MedusaMode = "ACAO" | "FOCO" | "PROCESSO" | "TRAVA";
 
 export interface ProfileOnboarding {
+  // Legacy fields (keep for backward compat)
   display_name?: string | null;
-  gender: string | null;
-  gender_other: string | null;
-  education_level: string;
-  education_level_other: string | null;
-  profession_category: string;
-  profession_other: string | null;
-  constraints: string[];
-  constraints_other: string | null;
-  blockers: string[];
-  blockers_other: string | null;
-  low_energy_works: string[];
-  low_energy_works_other: string | null;
-  guidance_style: string;
-  never_do: string[];
-  never_do_other: string | null;
-  routine: {
-    days: string[];
-    periods: string[];
-    notes: string;
-  };
   age_confirmed?: boolean;
   age_confirmed_at?: string;
+  gender?: string | null;
+  gender_other?: string | null;
+  education_level?: string;
+  education_level_other?: string | null;
+  profession_category?: string;
+  profession_other?: string | null;
+  guidance_style?: string;
+  routine?: { days: string[]; periods: string[]; notes: string };
+
+  // Block A — Identity
+  name?: string;
+  identifications?: string[];
+  identification_other?: string | null;
+  diagnosis_time?: string | null;
+  in_treatment?: "sim" | "nao" | "prefiro nao responder" | null;
+
+  // Block B — Executive functioning
+  daily_difficulties?: string[];
+
+  // Block C — Processing style
+  instruction_preference?: string | null;
+  deadline_reaction?: string | null;
+  reminder_style?: string | null;
+
+  // Block D — Triggers and unlockers
+  blockers?: string[];
+  unblockers?: string[];
+  unblocker_other?: string | null;
+
+  // Block E — Routine and goals
+  energy_period?: string | null;
+  medusa_goals?: string[];
+
+  // Legacy kept
+  constraints?: string[];
+  constraints_other?: string | null;
+  blockers_other?: string | null;
+  low_energy_works?: string[];
+  low_energy_works_other?: string | null;
+  never_do?: string[];
+  never_do_other?: string | null;
 }
 
 export type SubscriptionStatus = "free" | "trialing" | "active" | "past_due" | "canceled" | "incomplete";

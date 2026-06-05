@@ -229,23 +229,39 @@ serve(async (request) => {
       });
     }
 
-    const base64Pdf = uint8ToBase64(binary);
-    const analysisPrompt = [
-      "Extraia APENAS o que está escrito no documento, sem inferir, sem completar lacunas e sem diagnosticar por conta própria.",
-      "Não incluir nome, CPF, endereço, telefone ou qualquer dado identificador.",
-      "Não retornar texto integral do laudo.",
-      "Responda em português, em até 12 linhas, neste formato EXATO:",
-      "Diagnósticos/hipóteses: ...",
-      "Inteligência/nível cognitivo: ...",
-      "Perfil cognitivo: ...",
-      "Sinais de sobrecarga: ...",
-      "Recomendações operacionais para a Medusa: ...",
-      "Regras adicionais obrigatórias:",
-      "1) Diferencie diagnóstico fechado, hipótese e traço observado somente se o laudo explicitar.",
-      "2) Se houver QI/percentil/classificação cognitiva, incluir literalmente; se não houver, escrever 'não informado no documento'.",
-      "3) Se qualquer seção não estiver no laudo, escrever 'não informado no documento'.",
-      "4) Não diagnosticar, não prescrever, não inventar.",
-    ].join("\n");
+    const base64Data = uint8ToBase64(binary);
+    const mimeType = (documentRow.mime_type as string | null) ?? "application/pdf";
+    const isImage = mimeType === "image/jpeg" || mimeType === "image/png";
+
+    const analysisPrompt =
+      "Voce e um assistente de IA que auxilia pessoas neurodivergentes. Voce NAO e um profissional de saude. Sua funcao e ler documentos clinicos fornecidos pelo usuario (com consentimento) e extrair APENAS informacoes uteis para personalizar a interacao.\n\n" +
+      "Regras absolutas:\n" +
+      "1. NUNCA mencione nomes de medicamentos, dosagens ou tratamentos farmacologicos.\n" +
+      "2. NUNCA faca diagnosticos, prognosticos ou interpretacoes clinicas proprias.\n" +
+      "3. NUNCA sugira condutas terapeuticas ou substitua profissionais.\n" +
+      "4. Ignore informacoes intimas nao relacionadas a neurodivergencia.\n" +
+      "5. Se o documento nao for um laudo reconhecivel, responda apenas com o JSON com arrays vazios.\n\n" +
+      'Responda APENAS com um JSON valido, sem comentarios ou markdown:\n' +
+      '{"diagnosticos":["CID ou termo descritivo"],"caracteristicas":["ate 5 pontos relevantes para rotina"],"recomendacoes":["ate 3 recomendacoes do profissional no documento"],"resumo":"resumo impessoal de ate 100 palavras"}\n\n' +
+      "Se nao houver informacao relevante, retorne arrays vazios e resumo vazio.";
+
+    const documentContent = isImage
+      ? {
+          type: "image",
+          source: {
+            type: "base64",
+            media_type: mimeType as "image/jpeg" | "image/png",
+            data: base64Data,
+          },
+        }
+      : {
+          type: "document",
+          source: {
+            type: "base64",
+            media_type: "application/pdf",
+            data: base64Data,
+          },
+        };
 
     const anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -266,14 +282,7 @@ serve(async (request) => {
                 type: "text",
                 text: analysisPrompt,
               },
-              {
-                type: "document",
-                source: {
-                  type: "base64",
-                  media_type: "application/pdf",
-                  data: base64Pdf,
-                },
-              },
+              documentContent,
             ],
           },
         ],
@@ -310,7 +319,16 @@ serve(async (request) => {
       .join("\n")
       .trim();
 
-    const safeSummary = sanitizeOperationalSummary(textOutput);
+    let extractedSummary: string;
+    try {
+      const parsed = JSON.parse(textOutput);
+      extractedSummary = JSON.stringify(parsed);
+    } catch {
+      // Fallback: store raw text if not valid JSON
+      extractedSummary = textOutput;
+    }
+
+    const safeSummary = extractedSummary;
     if (!safeSummary) {
       await adminClient
         .from("user_documents")
