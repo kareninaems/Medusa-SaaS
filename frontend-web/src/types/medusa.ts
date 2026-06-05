@@ -105,6 +105,7 @@ export interface ClaudeProxyPayload {
   mode: MedusaMode;
   onboarding: ProfileOnboarding | null;
   memory: MemoryRow | null;
+  activeLoop?: string | null;
   documents?: Array<{
     id: string;
     file_name: string;

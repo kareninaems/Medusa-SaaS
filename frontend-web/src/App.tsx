@@ -11,6 +11,7 @@ import { OnboardingScreen } from "./components/OnboardingScreen";
 import { SettingsScreen } from "./components/SettingsScreen";
 import { PENDING_CONSENT_KEY, PRIVACY_VERSION, TERMS_VERSION } from "./constants/legal";
 import { supabase } from "./lib/supabase";
+import { detectLoop } from "./services/loopDetector";
 import {
   triggerDocumentAnalysis,
   callClaudeProxy,
@@ -67,27 +68,6 @@ const CRISIS_TERMS = [
   "tomar remedio para morrer",
 ];
 
-const LOOP_NAMES = [
-  "MINIONS",
-  "MERIDA-RILEY",
-  "COIOTE",
-  "SISIFO",
-  "MICHAEL SCOTT",
-  "DON QUIXOTE",
-  "BURNOUT",
-  "ALTA DEMANDA",
-] as const;
-
-const LOOP_HINTS: Record<(typeof LOOP_NAMES)[number], string[]> = {
-  MINIONS: ["sem direcao", "paralis", "trav", "comando"],
-  "MERIDA-RILEY": ["sobrecarga", "muitas tarefas", "travado com muita coisa"],
-  COIOTE: ["acao infinita", "sem questionar", "executando sem parar"],
-  SISIFO: ["carregando tudo", "peso", "aceitando tudo"],
-  "MICHAEL SCOTT": ["feedback", "funcionou", "retorno"],
-  "DON QUIXOTE": ["percepcao", "estimativa", "realidade"],
-  BURNOUT: ["exaust", "esgot", "energia 1"],
-  "ALTA DEMANDA": ["alta demanda", "muitas reunioes", "sensorial"],
-};
 
 function hasCrisisSignal(text: string): boolean {
   const normalized = text
@@ -104,23 +84,6 @@ function normalizeText(value: string): string {
     .toLowerCase();
 }
 
-function detectActiveLoop(messages: Message[]): { name: string; since: string | null } {
-  const recent = [...messages].reverse().filter((item) => item.role === "assistant" || item.role === "user").slice(0, 10);
-
-  for (const item of recent) {
-    const normalized = normalizeText(item.content);
-
-    for (const loop of LOOP_NAMES) {
-      const loopNormalized = normalizeText(loop);
-      const hints = LOOP_HINTS[loop];
-      if (normalized.includes(loopNormalized) || hints.some((hint) => normalized.includes(hint))) {
-        return { name: loop, since: item.created_at };
-      }
-    }
-  }
-
-  return { name: "EM OBSERVACAO", since: null };
-}
 
 function extractActionFromAssistant(content: string): string | null {
   if (!content || content.includes("188 (CVV)")) return null;
@@ -177,14 +140,6 @@ function computeBurnoutSignals(recentMessages: Message[]): {
   };
 }
 
-function formatSinceTime(isoDate: string | null): string {
-  if (!isoDate) return "";
-  try {
-    return new Date(isoDate).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-  } catch {
-    return "";
-  }
-}
 
 function isSameDay(isoDate: string): boolean {
   const created = new Date(isoDate);
@@ -322,7 +277,11 @@ function ProductApp() {
   }, [profile]);
 
   const currentEnergy = checkInEnergy ?? profile?.energy_default ?? 2;
-  const activeLoop = useMemo(() => detectActiveLoop(messages), [messages]);
+  const activeLoop = useMemo(() => {
+    const msgTexts = messages.filter((m) => m.role === "user" || m.role === "assistant").map((m) => m.content);
+    const energyLog = recentSignals.filter((m) => m.role === "user" && typeof m.energy === "number").map((m) => m.energy as number);
+    return detectLoop(msgTexts, energyLog);
+  }, [messages, recentSignals]);
   const burnoutSignals = useMemo(() => computeBurnoutSignals(recentSignals), [recentSignals]);
 
   const bootstrap = async (activeSession: Session) => {
@@ -625,6 +584,7 @@ function ProductApp() {
         mode,
         onboarding: profile.onboarding ? { ...profile.onboarding, display_name: profile.display_name } : null,
         memory,
+        activeLoop: activeLoop.loop ?? null,
       });
 
       const assistantMessage = await insertMessage({
@@ -814,8 +774,8 @@ function ProductApp() {
           <h1 className="app-title">Medusa</h1>
           <p className="muted" data-testid="current-energy-indicator">Energia atual: {currentEnergy}</p>
           <p className="muted" data-testid="active-loop-indicator">
-            Estado atual: {activeLoop.name}
-            {activeLoop.since ? ` - desde ${formatSinceTime(activeLoop.since)}` : ""}
+            Estado atual: {activeLoop.loop ?? "EM OBSERVACAO"}
+            {activeLoop.loop && activeLoop.confidence > 0 ? ` (${Math.round(activeLoop.confidence * 100)}%)` : ""}
           </p>
         </div>
       </header>

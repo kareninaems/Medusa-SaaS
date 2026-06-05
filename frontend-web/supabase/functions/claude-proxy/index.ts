@@ -53,6 +53,7 @@ interface ClaudeProxyPayload {
     didnt_work?: string[];
     context?: string[];
   } | null;
+  activeLoop?: string | null;
   documents?: Array<{
     id?: string;
     file_name?: string;
@@ -187,6 +188,8 @@ CONTEXTO DA SESSAO:
 - Data local: ${now.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
 - Energia atual: ${payload.energy}
 - Modo atual: ${sessionMode}
+- Loop comportamental detectado: ${payload.activeLoop ?? "EM OBSERVACAO"}
+${payload.activeLoop ? `- INSTRUCAO: o usuario esta no loop ${payload.activeLoop}. Leve isso em conta no tom e nas sugestoes sem nomear o loop diretamente na resposta, a menos que seja util.` : ""}
 
 HISTORICO RECENTE:
 ${recentHistory || "Sem historico."}
