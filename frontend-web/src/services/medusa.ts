@@ -10,11 +10,14 @@ import type {
   Message,
   Profile,
   ProfileOnboarding,
+  SubscriptionRow,
   UserDocument,
   UserConsent,
 } from "../types/medusa";
 
 const functionName = import.meta.env.VITE_SUPABASE_FUNCTION_NAME || "claude-proxy";
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
 export const AGE_CONFIRM_VERSION = "2026-05";
 export const DOCUMENT_ANALYSIS_CONSENT_VERSION = "2026-05";
 export const DOCUMENT_STORAGE_NOT_READY_MESSAGE =
@@ -23,6 +26,80 @@ export const DOCUMENT_SCHEMA_UPDATE_REQUIRED_MESSAGE =
   "Atualize o schema de documentos no Supabase para habilitar consentimento por documento.";
 
 const PROFILE_COLUMNS = "*";
+
+function normalizeSubscriptionStatus(value: unknown): SubscriptionRow["status"] {
+  const status = String(value || "inactive") as SubscriptionRow["status"];
+  const allowed: SubscriptionRow["status"][] = [
+    "inactive",
+    "pending",
+    "trialing",
+    "active",
+    "past_due",
+    "unpaid",
+    "canceled",
+    "incomplete",
+    "incomplete_expired",
+  ];
+  return allowed.includes(status) ? status : "inactive";
+}
+
+function normalizeSubscription(row: Partial<SubscriptionRow> & Record<string, unknown>): SubscriptionRow {
+  return {
+    id: String(row.id ?? ""),
+    user_id: String(row.user_id ?? ""),
+    stripe_customer_id: (row.stripe_customer_id as string | null | undefined) ?? null,
+    stripe_subscription_id: (row.stripe_subscription_id as string | null | undefined) ?? null,
+    stripe_price_id: (row.stripe_price_id as string | null | undefined) ?? null,
+    status: normalizeSubscriptionStatus(row.status),
+    current_period_end: (row.current_period_end as string | null | undefined) ?? null,
+    cancel_at_period_end: Boolean(row.cancel_at_period_end),
+    created_at: String(row.created_at ?? new Date().toISOString()),
+    updated_at: String(row.updated_at ?? new Date().toISOString()),
+  };
+}
+
+async function readFunctionErrorDetail(response: Response): Promise<string> {
+  try {
+    const payload = await response.json();
+    if (typeof payload?.detail === "string" && payload.detail.trim()) {
+      return payload.detail;
+    }
+    if (typeof payload?.error === "string" && payload.error.trim()) {
+      return payload.error;
+    }
+  } catch {
+    // ignore
+  }
+
+  return `Erro HTTP ${response.status}`;
+}
+
+async function callAuthedEdgeFunction(session: Session, name: string, body: Record<string, unknown> = {}) {
+  let response: Response;
+
+  try {
+    response = await fetch(`${supabaseUrl}/functions/v1/${name}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        apikey: supabaseAnonKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error(
+      "Não foi possível conectar às funções Stripe. Faça deploy de stripe-checkout/stripe-portal no Supabase.",
+    );
+  }
+
+  if (!response.ok) {
+    const detail = await readFunctionErrorDetail(response);
+    throw new Error(detail);
+  }
+
+  return response.json();
+}
 
 function normalizeUserDocument(row: Partial<UserDocument> & Record<string, unknown>): UserDocument {
   return {
@@ -456,6 +533,41 @@ export async function getMemory(userId: string): Promise<MemoryRow | null> {
 
   if (error) throw error;
   return (data as MemoryRow | null) ?? null;
+}
+
+export async function getSubscription(userId: string): Promise<SubscriptionRow | null> {
+  const { data, error } = await supabase
+    .from("subscriptions")
+    .select("id, user_id, stripe_customer_id, stripe_subscription_id, stripe_price_id, status, current_period_end, cancel_at_period_end, created_at, updated_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    const code = (error as { code?: string }).code;
+    const message = (error as { message?: string }).message ?? "";
+
+    if (code === "42P01" || message.toLowerCase().includes("subscriptions")) {
+      return null;
+    }
+
+    throw error;
+  }
+  return data ? normalizeSubscription(data as Record<string, unknown>) : null;
+}
+
+export async function createStripeCheckout(session: Session): Promise<{ checkout_url: string; session_id: string }> {
+  const data = await callAuthedEdgeFunction(session, "stripe-checkout");
+  return {
+    checkout_url: String(data?.checkout_url ?? ""),
+    session_id: String(data?.session_id ?? ""),
+  };
+}
+
+export async function createStripePortal(session: Session): Promise<{ portal_url: string }> {
+  const data = await callAuthedEdgeFunction(session, "stripe-portal");
+  return {
+    portal_url: String(data?.portal_url ?? ""),
+  };
 }
 
 export async function upsertMemory(

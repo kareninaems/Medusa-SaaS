@@ -1,11 +1,13 @@
 import type { Session } from "@supabase/supabase-js";
 import { Link } from "react-router-dom";
 
-import type { UserDocument } from "../types/medusa";
+import type { SubscriptionRow, UserDocument } from "../types/medusa";
 
 interface SettingsScreenProps {
   session: Session;
   documents: UserDocument[];
+  subscription: SubscriptionRow | null;
+  billingLoading?: boolean;
   loadingDocuments?: boolean;
   activeDocumentActionId?: string | null;
   resetting?: boolean;
@@ -13,6 +15,9 @@ interface SettingsScreenProps {
   onAnalyzeDocument: (documentId: string) => Promise<void>;
   onDeleteDocument: (document: UserDocument) => Promise<void>;
   onRefreshDocuments: () => Promise<void>;
+  onStartCheckout: () => Promise<void>;
+  onOpenPortal: () => Promise<void>;
+  onRefreshSubscription: () => Promise<void>;
   onReset: () => Promise<void>;
   onSignOut: () => Promise<void>;
 }
@@ -27,6 +32,8 @@ const STATUS_LABELS: Record<UserDocument["analysis_status"], string> = {
 export function SettingsScreen({
   session,
   documents,
+  subscription,
+  billingLoading = false,
   loadingDocuments = false,
   activeDocumentActionId = null,
   resetting = false,
@@ -34,6 +41,9 @@ export function SettingsScreen({
   onAnalyzeDocument,
   onDeleteDocument,
   onRefreshDocuments,
+  onStartCheckout,
+  onOpenPortal,
+  onRefreshSubscription,
   onReset,
   onSignOut,
 }: SettingsScreenProps) {
@@ -85,6 +95,47 @@ export function SettingsScreen({
           <button data-testid="settings-signout-button" className="primary-btn" onClick={onSignOut}>
             Sair da conta
           </button>
+        </div>
+
+        <div className="setup-item" data-testid="settings-billing-section">
+          <strong>Assinatura mensal</strong>
+          <span data-testid="settings-billing-status">
+            Status: {subscription?.status ? subscription.status : "inactive"}
+          </span>
+          {subscription?.current_period_end ? (
+            <span className="muted" data-testid="settings-billing-period-end">
+              Vigente até: {formatDateTime(subscription.current_period_end)}
+            </span>
+          ) : null}
+
+          <div className="composer-actions">
+            <button
+              data-testid="settings-billing-refresh-button"
+              className="ghost-btn"
+              onClick={onRefreshSubscription}
+              disabled={billingLoading}
+            >
+              {billingLoading ? "Atualizando..." : "Atualizar status"}
+            </button>
+
+            <button
+              data-testid="settings-billing-checkout-button"
+              className="primary-btn"
+              onClick={onStartCheckout}
+              disabled={billingLoading}
+            >
+              {billingLoading ? "Abrindo..." : "Assinar plano mensal"}
+            </button>
+
+            <button
+              data-testid="settings-billing-portal-button"
+              className="ghost-btn"
+              onClick={onOpenPortal}
+              disabled={billingLoading}
+            >
+              {billingLoading ? "Abrindo..." : "Gerenciar assinatura"}
+            </button>
+          </div>
         </div>
 
         <div className="setup-item">

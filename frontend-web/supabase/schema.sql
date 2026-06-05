@@ -91,6 +91,32 @@ create table if not exists public.user_documents (
   extracted_summary text
 );
 
+create table if not exists public.subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null unique references auth.users(id) on delete cascade,
+  stripe_customer_id text,
+  stripe_subscription_id text,
+  stripe_price_id text,
+  status text not null default 'inactive' check (status in ('inactive','pending','trialing','active','past_due','unpaid','canceled','incomplete','incomplete_expired')),
+  current_period_end timestamptz,
+  cancel_at_period_end boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists subscriptions_user_id_idx on public.subscriptions(user_id);
+create index if not exists subscriptions_status_idx on public.subscriptions(status);
+
+alter table public.subscriptions enable row level security;
+grant select, insert, update on public.subscriptions to authenticated;
+
+drop policy if exists subscriptions_all_own on public.subscriptions;
+create policy subscriptions_all_own
+  on public.subscriptions
+  for all
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
 alter table public.user_documents add column if not exists analysis_status text not null default 'uploaded';
 alter table public.user_documents add column if not exists analysis_consent_at timestamptz;
 alter table public.user_documents add column if not exists analysis_consent_version text;

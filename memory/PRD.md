@@ -11,6 +11,21 @@ Construir a versão Web SaaS da Medusa em `/app/frontend-web` (React + Vite + Su
 
 ## Implementado
 
+### Iteração atual — Stripe mensal (frontend-web, base funcional)
+- Criada estrutura de assinatura em `supabase/schema.sql` com tabela `subscriptions` + RLS.
+- Implementadas Edge Functions Stripe:
+  - `stripe-checkout` (checkout mensal)
+  - `stripe-portal` (gerenciamento de assinatura)
+  - `stripe-webhook` (sincronização de status)
+- `stripe-checkout` agora valida env vars críticas no início e retorna erro claro em `detail`:
+  - `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, `STRIPE_SUCCESS_URL`, `STRIPE_CANCEL_URL`.
+- Erros Stripe/configuração são propagados para o frontend via campo `detail`.
+- Frontend atualizado com seção **Assinatura mensal** no Setup:
+  - Botões: **Assinar plano mensal**, **Gerenciar assinatura**, **Atualizar status**.
+  - Status visível da assinatura (`inactive/active/...`).
+- Serviços adicionados em `medusa.ts` para checkout/portal + leitura de assinatura.
+- Fallback tratado quando a tabela `subscriptions` ainda não existe no projeto Supabase (não quebra bootstrap).
+
 ### Iteração atual — “Transformar em realidade” (fundação funcional)
 - **Estado ativo visível no topo** com indicador persistente: `Estado atual: <loop>`.
 - **Memória visível ao usuário** no chat (`Memória visível da Medusa`) com highlights de padrões/gatilhos/estratégias que funcionam.

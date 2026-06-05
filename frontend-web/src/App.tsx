@@ -16,12 +16,15 @@ import {
   callClaudeProxy,
   confirmAge,
   createConversation,
+  createStripeCheckout,
+  createStripePortal,
   deleteUserDocument,
   ensureProfile,
   getLatestAssistantMessage,
   getLatestConversation,
   getPreviousConversation,
   getRecentMessagesByUser,
+  getSubscription,
   grantDocumentAnalysisConsent,
   getMemory,
   getMessages,
@@ -41,6 +44,7 @@ import type {
   MemoryRow,
   Message,
   Profile,
+  SubscriptionRow,
   UserDocument,
 } from "./types/medusa";
 
@@ -288,6 +292,7 @@ function ProductApp() {
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [documents, setDocuments] = useState<UserDocument[]>([]);
+  const [subscription, setSubscription] = useState<SubscriptionRow | null>(null);
   const [memory, setMemory] = useState<MemoryRow | null>(null);
   const [recentSignals, setRecentSignals] = useState<Message[]>([]);
   const [followUpAction, setFollowUpAction] = useState<string | null>(null);
@@ -303,6 +308,7 @@ function ProductApp() {
   const [savingConsent, setSavingConsent] = useState(false);
   const [confirmingAge, setConfirmingAge] = useState(false);
   const [uploadingDocument, setUploadingDocument] = useState(false);
+  const [billingLoading, setBillingLoading] = useState(false);
   const [loadingDocuments, setLoadingDocuments] = useState(false);
   const [activeDocumentActionId, setActiveDocumentActionId] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -357,11 +363,12 @@ function ProductApp() {
       const latestConversation = await getLatestConversation(activeSession.user.id);
       const canReuseConversation = Boolean(latestConversation?.created_at && isSameDay(latestConversation.created_at));
 
-      const [loadedMemory, loadedDocuments, loadedMessages, loadedRecentSignals] = await Promise.all([
+      const [loadedMemory, loadedDocuments, loadedMessages, loadedRecentSignals, loadedSubscription] = await Promise.all([
         getMemory(activeSession.user.id),
         listUserDocuments(activeSession.user.id),
         canReuseConversation && latestConversation ? getMessages(latestConversation.id) : Promise.resolve([]),
         getRecentMessagesByUser(activeSession.user.id, 7),
+        getSubscription(activeSession.user.id),
       ]);
 
       const followUpSourceConversation = canReuseConversation
@@ -379,6 +386,7 @@ function ProductApp() {
       setMessages(loadedMessages);
       setMemory(loadedMemory);
       setDocuments(loadedDocuments);
+      setSubscription(loadedSubscription);
       setRecentSignals(loadedRecentSignals);
       setFollowUpAction(nextFollowUpAction);
       setCheckInEnergy(null);
@@ -421,6 +429,7 @@ function ProductApp() {
         setConversation(null);
         setMessages([]);
         setDocuments([]);
+        setSubscription(null);
         setMemory(null);
         setLoading(false);
       }
@@ -570,6 +579,54 @@ function ProductApp() {
       await handleRefreshDocuments();
     } finally {
       setActiveDocumentActionId(null);
+    }
+  };
+
+  const handleRefreshSubscription = async () => {
+    if (!session) return;
+    setBillingLoading(true);
+    setError("");
+    try {
+      const latest = await getSubscription(session.user.id);
+      setSubscription(latest);
+    } catch (subscriptionError) {
+      setError(subscriptionError instanceof Error ? subscriptionError.message : "Falha ao atualizar assinatura");
+    } finally {
+      setBillingLoading(false);
+    }
+  };
+
+  const handleStartCheckout = async () => {
+    if (!session) return;
+    setBillingLoading(true);
+    setError("");
+    try {
+      const checkout = await createStripeCheckout(session);
+      if (!checkout.checkout_url) {
+        throw new Error("Checkout sem URL válida");
+      }
+      window.location.href = checkout.checkout_url;
+    } catch (checkoutError) {
+      setError(checkoutError instanceof Error ? checkoutError.message : "Falha ao iniciar checkout");
+    } finally {
+      setBillingLoading(false);
+    }
+  };
+
+  const handleOpenPortal = async () => {
+    if (!session) return;
+    setBillingLoading(true);
+    setError("");
+    try {
+      const portal = await createStripePortal(session);
+      if (!portal.portal_url) {
+        throw new Error("Portal sem URL válida");
+      }
+      window.location.href = portal.portal_url;
+    } catch (portalError) {
+      setError(portalError instanceof Error ? portalError.message : "Falha ao abrir portal");
+    } finally {
+      setBillingLoading(false);
     }
   };
 
@@ -885,12 +942,17 @@ function ProductApp() {
           <SettingsScreen
             session={session}
             documents={documents}
+            subscription={subscription}
+            billingLoading={billingLoading}
             loadingDocuments={loadingDocuments}
             activeDocumentActionId={activeDocumentActionId}
             onGrantDocumentConsent={handleGrantDocumentConsent}
             onAnalyzeDocument={handleAnalyzeDocument}
             onDeleteDocument={handleDeleteDocument}
             onRefreshDocuments={handleRefreshDocuments}
+            onStartCheckout={handleStartCheckout}
+            onOpenPortal={handleOpenPortal}
+            onRefreshSubscription={handleRefreshSubscription}
             resetting={resetting}
             onReset={handleReset}
             onSignOut={handleSignOut}
