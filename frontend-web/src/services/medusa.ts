@@ -522,6 +522,19 @@ export async function createCheckoutSession(session: Session): Promise<{ url: st
   return { url: data.url as string };
 }
 
+export async function sendLoopFeedback(
+  session: Session,
+  loop: string,
+  triggeredIndices: number[],
+  energyLevel: number,
+  positive: boolean,
+): Promise<void> {
+  await supabase.functions.invoke("loop-feedback", {
+    body: { loop, triggeredIndices, energyLevel, positive },
+    headers: { Authorization: `Bearer ${session.access_token}` },
+  });
+}
+
 export async function callClaudeProxy(
   session: Session,
   payload: ClaudeProxyPayload,

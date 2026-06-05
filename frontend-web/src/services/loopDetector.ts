@@ -1,3 +1,5 @@
+import { supabase } from "../lib/supabase";
+
 export type LoopType =
   | "MINIONS"
   | "MERIDA_RILEY"
@@ -17,6 +19,12 @@ export interface DetectionResult {
   loop: LoopType | null;
   confidence: number;
   allScores: LoopScore[];
+  triggeredIndices: number[]; // indices of TRIGGERS[loop] that matched
+}
+
+export interface LoopProfile {
+  weights: Record<string, number[]>;
+  custom_triggers: Record<string, string[]>;
 }
 
 const TRIGGERS: Record<LoopType, RegExp[]> = {
@@ -99,15 +107,27 @@ const LOOP_PRIORITY: LoopType[] = [
   "MICHAEL_SCOTT",
 ];
 
-function scoreLoop(loop: LoopType, text: string, energyLog: number[]): number {
+interface ScoreWithIndices {
+  score: number;
+  matchedIndices: number[];
+}
+
+function scoreLoop(loop: LoopType, text: string, energyLog: number[]): ScoreWithIndices {
   if (loop === "BURNOUT") {
-    return energyLog.slice(-3).length === 3 && energyLog.slice(-3).every((e) => e <= 1) ? 1.0 : 0.0;
+    const isBurnout = energyLog.slice(-3).length === 3 && energyLog.slice(-3).every((e) => e <= 1);
+    return { score: isBurnout ? 1.0 : 0.0, matchedIndices: [] };
   }
 
   const triggers = TRIGGERS[loop];
   let matches = 0;
-  for (const regex of triggers) {
-    matches += (text.match(regex) || []).length;
+  const matchedIndices: number[] = [];
+
+  for (let i = 0; i < triggers.length; i++) {
+    const count = (text.match(triggers[i]) || []).length;
+    if (count > 0) {
+      matches += count;
+      matchedIndices.push(i);
+    }
   }
 
   let textScore = Math.min(matches / 3, 1.0);
@@ -119,21 +139,70 @@ function scoreLoop(loop: LoopType, text: string, energyLog: number[]): number {
     if (energyRule.max !== undefined && lastEnergy > energyRule.max) textScore *= 0.2;
   }
 
-  return textScore;
+  return { score: textScore, matchedIndices };
 }
 
-export function detectLoop(messages: string[], energyLog: number[]): DetectionResult {
-  const recentText = messages.slice(-10).join(" ");
+export function scoreLoopWithProfile(
+  loop: LoopType,
+  text: string,
+  energyLog: number[],
+  profile: LoopProfile,
+): ScoreWithIndices {
+  const base = scoreLoop(loop, text, energyLog);
+  if (loop === "BURNOUT" || base.matchedIndices.length === 0) return base;
 
-  const burnoutScore = scoreLoop("BURNOUT", recentText, energyLog);
-  if (burnoutScore === 1.0) {
-    return { loop: "BURNOUT", confidence: 1.0, allScores: [{ loop: "BURNOUT", score: 1.0 }] };
+  const weights = profile.weights[loop];
+  if (!weights) return base;
+
+  // Re-score with per-trigger weight multipliers
+  const triggers = TRIGGERS[loop];
+  let weightedMatches = 0;
+  for (const idx of base.matchedIndices) {
+    const w = idx < weights.length ? weights[idx] : 1.0;
+    const count = (text.match(triggers[idx]) || []).length;
+    weightedMatches += count * w;
   }
 
-  const scores: LoopScore[] = LOOP_PRIORITY.map((loop) => ({
-    loop,
-    score: scoreLoop(loop, recentText, energyLog),
-  }));
+  let textScore = Math.min(weightedMatches / 3, 1.0);
+
+  const energyRule = ENERGY_RULES[loop];
+  if (energyRule && energyLog.length > 0) {
+    const lastEnergy = energyLog[energyLog.length - 1];
+    if (energyRule.min !== undefined && lastEnergy < energyRule.min) textScore *= 0.2;
+    if (energyRule.max !== undefined && lastEnergy > energyRule.max) textScore *= 0.2;
+  }
+
+  return { score: textScore, matchedIndices: base.matchedIndices };
+}
+
+export async function loadLoopProfile(userId: string): Promise<LoopProfile | null> {
+  const { data, error } = await supabase
+    .from("loop_profiles")
+    .select("weights, custom_triggers")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return {
+    weights: (data.weights as Record<string, number[]>) ?? {},
+    custom_triggers: (data.custom_triggers as Record<string, string[]>) ?? {},
+  };
+}
+
+export function detectLoop(messages: string[], energyLog: number[], profile?: LoopProfile): DetectionResult {
+  const recentText = messages.slice(-10).join(" ");
+
+  const burnoutResult = scoreLoop("BURNOUT", recentText, energyLog);
+  if (burnoutResult.score === 1.0) {
+    return { loop: "BURNOUT", confidence: 1.0, allScores: [{ loop: "BURNOUT", score: 1.0 }], triggeredIndices: [] };
+  }
+
+  const scores: (LoopScore & { matchedIndices: number[] })[] = LOOP_PRIORITY.map((loop) => {
+    const result = profile
+      ? scoreLoopWithProfile(loop, recentText, energyLog, profile)
+      : scoreLoop(loop, recentText, energyLog);
+    return { loop, score: result.score, matchedIndices: result.matchedIndices };
+  });
 
   scores.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
@@ -142,8 +211,18 @@ export function detectLoop(messages: string[], energyLog: number[]): DetectionRe
 
   const top = scores[0];
   if (top.score >= 0.6) {
-    return { loop: top.loop, confidence: top.score, allScores: scores };
+    return {
+      loop: top.loop,
+      confidence: top.score,
+      allScores: scores.map(({ loop, score }) => ({ loop, score })),
+      triggeredIndices: top.matchedIndices,
+    };
   }
 
-  return { loop: null, confidence: 0, allScores: scores };
+  return {
+    loop: null,
+    confidence: 0,
+    allScores: scores.map(({ loop, score }) => ({ loop, score })),
+    triggeredIndices: [],
+  };
 }

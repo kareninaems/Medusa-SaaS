@@ -32,6 +32,7 @@ import {
   needsConsent,
   recordUserConsent,
   resetUserData,
+  sendLoopFeedback,
   updateEnergy,
   updateOnboarding,
   uploadUserDocument,
@@ -633,6 +634,14 @@ function ProductApp() {
 
   const handleFollowUpAnswer = async (answer: FollowUpAnswer) => {
     if (!followUpAction) return;
+
+    if (session && activeLoop.loop) {
+      const positive = answer === "sim";
+      const negative = answer === "nao";
+      if (positive || negative) {
+        sendLoopFeedback(session, activeLoop.loop, activeLoop.triggeredIndices, currentEnergy, positive).catch(() => {});
+      }
+    }
 
     const payload = `Follow-up de evidencia: ${answer}.\nAcao combinada: ${followUpAction}`;
     await handleSendMessage(payload);
