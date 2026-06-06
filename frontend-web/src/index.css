@@ -350,8 +350,28 @@ select:focus-visible {
 
 .chat-header {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border, #e0e0e0);
+  margin-bottom: 8px;
+}
+
+.chat-back-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--muted, #888);
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.chat-back-btn:hover {
+  background: var(--surface-2, #f0f0f0);
+  color: var(--fg, #111);
 }
 
 .chat-signals {
