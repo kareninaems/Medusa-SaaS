@@ -68,6 +68,21 @@ serve(async (req) => {
 
   try {
     switch (event.type) {
+      case "checkout.session.completed": {
+        const customerId = obj["customer"] as string;
+        const subscriptionId = obj["subscription"] as string | undefined;
+        if (customerId && subscriptionId) {
+          await adminClient
+            .from("profiles")
+            .update({
+              stripe_subscription_id: subscriptionId,
+              subscription_status: "active",
+            })
+            .eq("stripe_customer_id", customerId);
+        }
+        break;
+      }
+
       case "customer.subscription.created":
       case "customer.subscription.updated": {
         const customerId = obj["customer"] as string;
