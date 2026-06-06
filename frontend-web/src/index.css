@@ -374,6 +374,13 @@ select:focus-visible {
   color: var(--fg, #111);
 }
 
+.chat-back-btn {
+  align-self: flex-start;
+  padding: 2px 0;
+  font-size: 0.85rem;
+  margin-bottom: 4px;
+}
+
 .chat-signals {
   width: min(760px, 100%);
   margin: 0 auto;

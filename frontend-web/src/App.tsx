@@ -5,9 +5,10 @@ import { Route, Routes, Link } from "react-router-dom";
 import { AuthScreen } from "./components/AuthScreen";
 import { ChatScreen } from "./components/ChatScreen";
 import { CheckInScreen } from "./components/CheckInScreen";
+import { LandingPage } from "./components/LandingPage";
 import { CrisisPage, PrivacyPage, TermsPage } from "./components/LegalPages";
 import { OnboardingScreen } from "./components/OnboardingScreen";
-// import { PaywallScreen } from "./components/PaywallScreen"; // TEMP disabled
+import { PaywallScreen } from "./components/PaywallScreen";
 import { SettingsScreen } from "./components/SettingsScreen";
 import { PENDING_CONSENT_KEY, PRIVACY_VERSION, TERMS_VERSION } from "./constants/legal";
 import { supabase } from "./lib/supabase";
@@ -17,6 +18,7 @@ import {
   callClaudeProxy,
   confirmAge,
   createCheckoutSession,
+  createPortalSession,
   createConversation,
   deleteUserDocument,
   ensureProfile,
@@ -201,6 +203,68 @@ function AgeGate({
   );
 }
 
+function EmailVerificationPending({ email }: { email: string }) {
+  const [info, setInfo] = useState("");
+  const [error, setError] = useState("");
+  const [lastResentAt, setLastResentAt] = useState<number | null>(null);
+  const [secondsUntilResend, setSecondsUntilResend] = useState(0);
+  const RESEND_COOLDOWN = 60;
+
+  useEffect(() => {
+    if (!lastResentAt) return;
+    const tick = () => {
+      const elapsed = Math.floor((Date.now() - lastResentAt) / 1000);
+      setSecondsUntilResend(Math.max(0, RESEND_COOLDOWN - elapsed));
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [lastResentAt]);
+
+  const handleResend = async () => {
+    setError("");
+    try {
+      const { error: resendError } = await supabase.auth.resend({
+        type: "signup",
+        email,
+        options: { emailRedirectTo: `${window.location.origin}/onboarding` },
+      });
+      if (resendError) throw resendError;
+      setLastResentAt(Date.now());
+      setInfo("Email reenviado. Verifique sua caixa de entrada.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao reenviar email.");
+    }
+  };
+
+  return (
+    <div className="auth-shell">
+      <div className="auth-card">
+        <p className="eyebrow">Medusa</p>
+        <h1 style={{ fontSize: "2rem" }}>✉️</h1>
+        <h2>Confirme seu email</h2>
+        <p className="auth-sub">
+          Enviamos um link para <strong>{email}</strong>. Clique nele para ativar sua conta.
+        </p>
+        <p className="muted" style={{ fontSize: "0.85rem" }}>Verifique a pasta de spam se não encontrar.</p>
+        {info ? <p className="status-ok">{info}</p> : null}
+        {error ? <p className="status-error">{error}</p> : null}
+        <button
+          className="primary-btn"
+          onClick={handleResend}
+          disabled={secondsUntilResend > 0}
+          style={{ marginTop: "1rem" }}
+        >
+          {secondsUntilResend > 0 ? `Reenviar em ${secondsUntilResend}s` : "Reenviar email"}
+        </button>
+        <button className="ghost-btn" onClick={() => supabase.auth.signOut()} style={{ marginTop: "0.5rem" }}>
+          ← Sair e usar outro email
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ProductApp() {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -224,7 +288,7 @@ function ProductApp() {
   const [uploadingDocument, setUploadingDocument] = useState(false);
   const [loadingDocuments, setLoadingDocuments] = useState(false);
   const [activeDocumentActionId, setActiveDocumentActionId] = useState<string | null>(null);
-  const [_checkingOut, setCheckingOut] = useState(false);
+  const [checkingOut, setCheckingOut] = useState(false);
   const [error, setError] = useState("");
 
   const onboardingMissing = useMemo(() => {
@@ -655,6 +719,17 @@ function ProductApp() {
     }
   };
 
+  const handlePortal = async () => {
+    if (!session) return;
+    setError("");
+    try {
+      const { url } = await createPortalSession(session);
+      window.location.href = url;
+    } catch (portalError) {
+      setError(portalError instanceof Error ? portalError.message : "Falha ao abrir portal de assinatura");
+    }
+  };
+
   const handleAcceptConsent = async () => {
     if (!session) return;
     setSavingConsent(true);
@@ -681,6 +756,10 @@ function ProductApp() {
 
   if (!session) {
     return <AuthScreen onAuthDone={async () => undefined} />;
+  }
+
+  if (!session.user.email_confirmed_at) {
+    return <EmailVerificationPending email={session.user.email ?? ""} />;
   }
 
   if (!profile) {
@@ -724,6 +803,17 @@ function ProductApp() {
     );
   }
 
+  const isSubscribed =
+    profile.subscription_status === "active" || profile.subscription_status === "trialing";
+  if (!isSubscribed) {
+    return (
+      <div className="app-shell">
+        <PaywallScreen onCheckout={handleCheckout} loading={checkingOut} />
+        {error ? <p className="status-error" data-testid="paywall-error">{error}</p> : null}
+      </div>
+    );
+  }
+
   if (!checkInDone) {
     return (
       <div className="app-shell">
@@ -758,25 +848,13 @@ function ProductApp() {
               onReset={handleReset}
               onSignOut={handleSignOut}
               subscriptionStatus={profile.subscription_status}
-              onManageSubscription={handleCheckout}
+              onManageSubscription={handlePortal}
             />
           ) : null}
         </div>
       </div>
     );
   }
-
-  // TEMP: paywall disabled for owner testing — re-enable before public launch
-  // const isSubscribed =
-  //   profile.subscription_status === "active" || profile.subscription_status === "trialing";
-  // if (!isSubscribed) {
-  //   return (
-  //     <div className="app-shell">
-  //       <PaywallScreen onCheckout={handleCheckout} loading={checkingOut} />
-  //       {error ? <p className="status-error" data-testid="paywall-error">{error}</p> : null}
-  //     </div>
-  //   );
-  // }
 
   return (
     <div className="app-shell">
@@ -856,7 +934,14 @@ function ProductApp() {
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<ProductApp />} />
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/login" element={<ProductApp />} />
+      <Route path="/onboarding" element={<ProductApp />} />
+      <Route path="/checkin" element={<ProductApp />} />
+      <Route path="/chat" element={<ProductApp />} />
+      <Route path="/pricing" element={<ProductApp />} />
+      <Route path="/configuracoes" element={<ProductApp />} />
+      <Route path="/app" element={<ProductApp />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/crisis" element={<CrisisPage />} />
