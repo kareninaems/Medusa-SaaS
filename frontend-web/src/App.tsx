@@ -774,7 +774,7 @@ function ProductApp() {
           </div>
         ) : null}
 
-        {checkInEnergy !== null && followUpAction ? (
+        {followUpAction ? (
           <div className="signal-card signal-followup" data-testid="followup-card">
             <p className="signal-title">Follow-up automatico</p>
             <p className="signal-copy">Ontem voce combinou: {followUpAction}</p>
