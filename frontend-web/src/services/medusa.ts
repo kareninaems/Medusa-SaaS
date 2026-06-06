@@ -533,8 +533,10 @@ export async function createCheckoutSession(session: Session): Promise<{ url: st
   }
 
   if (!data?.url) {
-    const detail = (data as { error?: string; detail?: string } | null)?.detail || (data as { error?: string } | null)?.error;
-    throw new Error(detail || "Resposta invalida do checkout Stripe");
+    const d = data as Record<string, unknown> | null;
+    const detail = (d?.detail as string) || (d?.error as string);
+    const debugInfo = d ? JSON.stringify(d) : "data=null";
+    throw new Error(detail || `Resposta invalida do checkout Stripe [${debugInfo}]`);
   }
 
   return { url: data.url as string };
