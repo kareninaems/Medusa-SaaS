@@ -532,14 +532,16 @@ export async function createCheckoutSession(session: Session): Promise<{ url: st
     throw new Error(detail || error.message || "Falha ao criar sessao de checkout");
   }
 
-  if (!data?.url) {
+  const url = (data as Record<string, unknown> | null)?.url as string | undefined
+    || (data as Record<string, unknown> | null)?.checkout_url as string | undefined;
+
+  if (!url) {
     const d = data as Record<string, unknown> | null;
     const detail = (d?.detail as string) || (d?.error as string);
-    const debugInfo = d ? JSON.stringify(d) : "data=null";
-    throw new Error(detail || `Resposta invalida do checkout Stripe [${debugInfo}]`);
+    throw new Error(detail || "Resposta invalida do checkout Stripe");
   }
 
-  return { url: data.url as string };
+  return { url };
 }
 
 export async function createPortalSession(session: Session): Promise<{ url: string }> {
