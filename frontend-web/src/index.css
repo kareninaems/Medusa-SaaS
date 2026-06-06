@@ -584,6 +584,13 @@ select:focus-visible {
   border-color: var(--accent);
 }
 
+.status-inline-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .legal-shell {
   width: min(760px, 100%);
   padding-top: 20px;

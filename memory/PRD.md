@@ -33,6 +33,10 @@ Construir a versão Web SaaS da Medusa em `/app/frontend-web` (React + Vite + Su
 - Validação manual: checkout/portal retornando `detail` explícito no app (mensagem atual de chave inválida Stripe).
 - Chave Stripe real atualizada em secrets + novo `price_id` mensal criado (`price_1TfMlhABaLpOc2TmxZfuq60B`).
 - Revalidação manual: checkout e portal sem erro de API key no app (fluxo responde corretamente).
+- Adicionados toasts de retorno do checkout por query param:
+  - `?checkout=success` → mensagem de confirmação
+  - `?checkout=cancel` → mensagem de cancelamento
+- Query param é limpo da URL após exibir o toast (evita repetição no reload).
 
 ### Iteração atual — “Transformar em realidade” (fundação funcional)
 - **Estado ativo visível no topo** com indicador persistente: `Estado atual: <loop>`.

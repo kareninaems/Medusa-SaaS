@@ -50,6 +50,7 @@ import type {
 
 type AppTab = "chat" | "setup";
 type FollowUpAnswer = "sim" | "parcial" | "não";
+type CheckoutNoticeType = "success" | "cancel";
 
 const CRISIS_SAFE_FALLBACK =
   "Isso é risco imediato. Eu não vou tentar resolver isso por chat.\n" +
@@ -312,6 +313,10 @@ function ProductApp() {
   const [loadingDocuments, setLoadingDocuments] = useState(false);
   const [activeDocumentActionId, setActiveDocumentActionId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [checkoutNotice, setCheckoutNotice] = useState<{
+    type: CheckoutNoticeType;
+    message: string;
+  } | null>(null);
 
   const onboardingMissing = useMemo(() => {
     if (!profile?.onboarding) return true;
@@ -401,6 +406,33 @@ function ProductApp() {
 
   useEffect(() => {
     let mounted = true;
+
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const checkoutStatus = params.get("checkout");
+
+      if (checkoutStatus === "success") {
+        setCheckoutNotice({
+          type: "success",
+          message: "✅ Pagamento confirmado. Assinatura ativada.",
+        });
+      }
+
+      if (checkoutStatus === "cancel") {
+        setCheckoutNotice({
+          type: "cancel",
+          message: "Pagamento cancelado. Você pode tentar novamente quando quiser.",
+        });
+      }
+
+      if (checkoutStatus) {
+        params.delete("checkout");
+        const nextQuery = params.toString();
+        const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}${window.location.hash}`;
+        window.history.replaceState({}, "", nextUrl);
+      }
+    }
+
     const init = async () => {
       const { data } = await supabase.auth.getSession();
       if (!mounted) return;
@@ -867,6 +899,23 @@ function ProductApp() {
       </header>
 
       {error ? <p className="status-error" data-testid="product-app-error">{error}</p> : null}
+      {checkoutNotice ? (
+        <div
+          className={checkoutNotice.type === "success" ? "status-ok" : "status-error"}
+          data-testid="checkout-status-toast"
+        >
+          <div className="status-inline-row">
+            <span data-testid="checkout-status-toast-text">{checkoutNotice.message}</span>
+            <button
+              className="ghost-btn"
+              data-testid="checkout-status-toast-close-button"
+              onClick={() => setCheckoutNotice(null)}
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {tab === "chat" ? (
         <>
