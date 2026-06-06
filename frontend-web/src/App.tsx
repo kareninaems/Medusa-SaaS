@@ -17,6 +17,7 @@ import {
   callClaudeProxy,
   confirmAge,
   createCheckoutSession,
+  createPortalSession,
   createConversation,
   deleteUserDocument,
   ensureProfile,
@@ -655,6 +656,17 @@ function ProductApp() {
     }
   };
 
+  const handlePortal = async () => {
+    if (!session) return;
+    setError("");
+    try {
+      const { url } = await createPortalSession(session);
+      window.location.href = url;
+    } catch (portalError) {
+      setError(portalError instanceof Error ? portalError.message : "Falha ao abrir portal de assinatura");
+    }
+  };
+
   const handleAcceptConsent = async () => {
     if (!session) return;
     setSavingConsent(true);
@@ -758,7 +770,7 @@ function ProductApp() {
               onReset={handleReset}
               onSignOut={handleSignOut}
               subscriptionStatus={profile.subscription_status}
-              onManageSubscription={handleCheckout}
+              onManageSubscription={handlePortal}
             />
           ) : null}
         </div>

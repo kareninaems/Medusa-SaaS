@@ -540,6 +540,27 @@ export async function createCheckoutSession(session: Session): Promise<{ url: st
   return { url: data.url as string };
 }
 
+export async function createPortalSession(session: Session): Promise<{ url: string }> {
+  const { data, error } = await supabase.functions.invoke("stripe-portal", {
+    body: {},
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+    },
+  });
+
+  if (error) {
+    const detail = (data as { detail?: string } | null)?.detail;
+    throw new Error(detail || error.message || "Falha ao abrir portal de assinatura");
+  }
+
+  if (!data?.url) {
+    const detail = (data as { error?: string; detail?: string } | null)?.detail || (data as { error?: string } | null)?.error;
+    throw new Error(detail || "Resposta invalida do portal Stripe");
+  }
+
+  return { url: data.url as string };
+}
+
 export async function sendLoopFeedback(
   session: Session,
   loop: string,
