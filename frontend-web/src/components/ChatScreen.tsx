@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import type { ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
 
 import type { EnergyLevel, Message } from "../types/medusa";
 
@@ -10,11 +9,11 @@ interface ChatScreenProps {
   sending?: boolean;
   energy: EnergyLevel;
   onSend: (message: string) => Promise<void>;
+  onBack: () => void;
 }
 
-export function ChatScreen({ messages, sending = false, energy, onSend }: ChatScreenProps) {
+export function ChatScreen({ messages, sending = false, energy, onSend, onBack }: ChatScreenProps) {
   const [input, setInput] = useState("");
-  const navigate = useNavigate();
 
   const canSend = useMemo(() => !!input.trim() && !sending, [input, sending]);
 
@@ -69,8 +68,9 @@ export function ChatScreen({ messages, sending = false, energy, onSend }: ChatSc
     <section className="chat-layout" aria-live="polite">
       <header className="chat-header">
         <button
+          type="button"
           className="ghost-btn chat-back-btn"
-          onClick={() => navigate("/")}
+          onClick={onBack}
           aria-label="Voltar ao menu"
         >
           ← Voltar
