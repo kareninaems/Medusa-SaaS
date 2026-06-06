@@ -1,9 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 
+import { isDisposableEmail } from "../constants/disposableDomains";
 import { PENDING_CONSENT_KEY } from "../constants/legal";
 import { supabase } from "../lib/supabase";
 import { AGE_CONFIRM_VERSION } from "../services/medusa";
+
+const RESEND_COOLDOWN = 60;
 
 interface AuthScreenProps {
   onAuthDone: () => Promise<void>;
@@ -19,6 +22,42 @@ export function AuthScreen({ onAuthDone }: AuthScreenProps) {
   const [acceptedLegal, setAcceptedLegal] = useState(false);
   const [acceptedAge, setAcceptedAge] = useState(false);
 
+  // Pending email verification state
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [lastResentAt, setLastResentAt] = useState<number | null>(null);
+  const [secondsUntilResend, setSecondsUntilResend] = useState(0);
+
+  // Countdown ticker
+  useEffect(() => {
+    if (!lastResentAt) return;
+    const tick = () => {
+      const elapsed = Math.floor((Date.now() - lastResentAt) / 1000);
+      const remaining = Math.max(0, RESEND_COOLDOWN - elapsed);
+      setSecondsUntilResend(remaining);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [lastResentAt]);
+
+  const emailRedirectTo = `${window.location.origin}/onboarding`;
+
+  const handleResend = async () => {
+    setError("");
+    try {
+      const { error: resendError } = await supabase.auth.resend({
+        type: "signup",
+        email: pendingEmail,
+        options: { emailRedirectTo },
+      });
+      if (resendError) throw resendError;
+      setLastResentAt(Date.now());
+      setInfo("Email reenviado. Verifique sua caixa de entrada.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao reenviar email.");
+    }
+  };
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setLoading(true);
@@ -26,6 +65,8 @@ export function AuthScreen({ onAuthDone }: AuthScreenProps) {
     setInfo("");
 
     try {
+      const trimmedEmail = email.trim();
+
       if (mode === "register") {
         if (!acceptedLegal) {
           setError("Você precisa aceitar os Termos de Uso e a Política de Privacidade.");
@@ -35,13 +76,17 @@ export function AuthScreen({ onAuthDone }: AuthScreenProps) {
           setError("Você precisa declarar que tem 18 anos ou mais.");
           return;
         }
+        if (isDisposableEmail(trimmedEmail)) {
+          setError("Emails temporários não são aceitos. Use um email permanente.");
+          return;
+        }
 
         const ageConfirmedAt = new Date().toISOString();
-
         const { data, error: registerError } = await supabase.auth.signUp({
-          email: email.trim(),
+          email: trimmedEmail,
           password,
           options: {
+            emailRedirectTo,
             data: {
               age_confirmed: true,
               age_confirmed_at: ageConfirmedAt,
@@ -52,16 +97,24 @@ export function AuthScreen({ onAuthDone }: AuthScreenProps) {
         if (registerError) throw registerError;
         localStorage.setItem(PENDING_CONSENT_KEY, "true");
         if (!data.session) {
-          setInfo("Conta criada. Verifique seu e-mail para confirmar.");
+          setPendingEmail(trimmedEmail);
+          setLastResentAt(Date.now());
         } else {
           await onAuthDone();
         }
       } else {
-        const { error: loginError } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
+        const { data, error: loginError } = await supabase.auth.signInWithPassword({
+          email: trimmedEmail,
           password,
         });
         if (loginError) throw loginError;
+        // Guard: email not confirmed yet
+        if (data.user && !data.user.email_confirmed_at) {
+          await supabase.auth.signOut();
+          setPendingEmail(trimmedEmail);
+          setLastResentAt(Date.now());
+          return;
+        }
         await onAuthDone();
       }
     } catch (submitError) {
@@ -71,6 +124,57 @@ export function AuthScreen({ onAuthDone }: AuthScreenProps) {
     }
   };
 
+  // ── Pending verification screen ──────────────────────────────────────────
+  if (pendingEmail) {
+    return (
+      <div className="auth-shell" data-testid="auth-screen">
+        <div className="auth-card" data-testid="auth-pending-card">
+          <p className="eyebrow">Medusa</p>
+          <h1 style={{ fontSize: "2rem" }}>✉️</h1>
+          <h2>Confirme seu email</h2>
+          <p className="auth-sub">
+            Enviamos um link de confirmação para <strong>{pendingEmail}</strong>.
+            Clique no link para ativar sua conta.
+          </p>
+          <p className="muted" style={{ fontSize: "0.85rem", marginTop: "0.5rem" }}>
+            Dica: verifique a pasta de spam se não encontrar.
+          </p>
+
+          {info ? <p className="status-ok" data-testid="auth-resend-info">{info}</p> : null}
+          {error ? <p className="status-error" data-testid="auth-resend-error">{error}</p> : null}
+
+          <button
+            data-testid="auth-resend-button"
+            className="primary-btn"
+            onClick={handleResend}
+            disabled={secondsUntilResend > 0}
+            style={{ marginTop: "1rem" }}
+          >
+            {secondsUntilResend > 0
+              ? `Reenviar em ${secondsUntilResend}s`
+              : "Reenviar email"}
+          </button>
+
+          <button
+            data-testid="auth-back-to-login-button"
+            className="ghost-btn"
+            onClick={() => {
+              setPendingEmail("");
+              setLastResentAt(null);
+              setSecondsUntilResend(0);
+              setError("");
+              setInfo("");
+            }}
+            style={{ marginTop: "0.5rem" }}
+          >
+            ← Voltar ao login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Main auth form ───────────────────────────────────────────────────────
   return (
     <div className="auth-shell" data-testid="auth-screen">
       <div className="auth-card" data-testid="auth-card">
