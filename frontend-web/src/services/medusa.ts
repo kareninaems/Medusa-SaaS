@@ -533,8 +533,31 @@ export async function createCheckoutSession(session: Session): Promise<{ url: st
   }
 
   if (!data?.url) {
+    const d = data as Record<string, unknown> | null;
+    const detail = (d?.detail as string) || (d?.error as string);
+    const debugInfo = d ? JSON.stringify(d) : "data=null";
+    throw new Error(detail || `Resposta invalida do checkout Stripe [${debugInfo}]`);
+  }
+
+  return { url: data.url as string };
+}
+
+export async function createPortalSession(session: Session): Promise<{ url: string }> {
+  const { data, error } = await supabase.functions.invoke("stripe-portal", {
+    body: {},
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+    },
+  });
+
+  if (error) {
+    const detail = (data as { detail?: string } | null)?.detail;
+    throw new Error(detail || error.message || "Falha ao abrir portal de assinatura");
+  }
+
+  if (!data?.url) {
     const detail = (data as { error?: string; detail?: string } | null)?.detail || (data as { error?: string } | null)?.error;
-    throw new Error(detail || "Resposta invalida do checkout Stripe");
+    throw new Error(detail || "Resposta invalida do portal Stripe");
   }
 
   return { url: data.url as string };
