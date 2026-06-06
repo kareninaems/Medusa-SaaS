@@ -213,6 +213,7 @@ function ProductApp() {
   const [followUpId, setFollowUpId] = useState<number | null>(null);
   const [checkInEnergy, setCheckInEnergy] = useState<EnergyLevel | null>(null);
   const [checkInDone, setCheckInDone] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savingOnboarding, setSavingOnboarding] = useState(false);
   const [savingCheckIn, setSavingCheckIn] = useState(false);
@@ -732,6 +733,35 @@ function ProductApp() {
           onConfirm={handleCheckIn}
         />
         {error ? <p className="status-error" data-testid="checkin-flow-error">{error}</p> : null}
+        <div style={{ padding: "0 1rem 1.5rem" }}>
+          <button
+            className="ghost-btn"
+            style={{ fontSize: "0.85rem" }}
+            onClick={() => setShowSettings((v) => !v)}
+            data-testid="checkin-settings-toggle"
+          >
+            {showSettings ? "▲ Fechar configurações" : "⚙ Configurações"}
+          </button>
+          {showSettings ? (
+            <SettingsScreen
+              session={session}
+              documents={documents}
+              loadingDocuments={loadingDocuments}
+              uploadingDocument={uploadingDocument}
+              activeDocumentActionId={activeDocumentActionId}
+              onUploadDocument={handleUploadDocument}
+              onGrantDocumentConsent={handleGrantDocumentConsent}
+              onAnalyzeDocument={handleAnalyzeDocument}
+              onDeleteDocument={handleDeleteDocument}
+              onRefreshDocuments={handleRefreshDocuments}
+              resetting={resetting}
+              onReset={handleReset}
+              onSignOut={handleSignOut}
+              subscriptionStatus={profile.subscription_status}
+              onManageSubscription={handleCheckout}
+            />
+          ) : null}
+        </div>
       </div>
     );
   }
@@ -817,25 +847,8 @@ function ProductApp() {
         sending={sendingChat}
         energy={currentEnergy}
         onSend={handleSendMessage}
+        onBack={() => setCheckInDone(false)}
       />
-
-      <div className="setup-column">
-        <SettingsScreen
-          session={session}
-          documents={documents}
-          loadingDocuments={loadingDocuments}
-          activeDocumentActionId={activeDocumentActionId}
-          onGrantDocumentConsent={handleGrantDocumentConsent}
-          onAnalyzeDocument={handleAnalyzeDocument}
-          onDeleteDocument={handleDeleteDocument}
-          onRefreshDocuments={handleRefreshDocuments}
-          resetting={resetting}
-          onReset={handleReset}
-          onSignOut={handleSignOut}
-          subscriptionStatus={profile.subscription_status}
-          onManageSubscription={handleCheckout}
-        />
-      </div>
     </div>
   );
 }

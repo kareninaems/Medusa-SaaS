@@ -1,15 +1,20 @@
+import { useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { Link } from "react-router-dom";
 
 import type { SubscriptionStatus, UserDocument } from "../types/medusa";
 
+const ALLOWED_MIME = ["application/pdf", "image/jpeg", "image/png"];
+
 interface SettingsScreenProps {
   session: Session;
   documents: UserDocument[];
   loadingDocuments?: boolean;
+  uploadingDocument?: boolean;
   activeDocumentActionId?: string | null;
   resetting?: boolean;
   subscriptionStatus?: SubscriptionStatus;
+  onUploadDocument: (files: File[]) => Promise<void>;
   onGrantDocumentConsent: (documentId: string) => Promise<void>;
   onAnalyzeDocument: (documentId: string) => Promise<void>;
   onDeleteDocument: (document: UserDocument) => Promise<void>;
@@ -40,9 +45,11 @@ export function SettingsScreen({
   session,
   documents,
   loadingDocuments = false,
+  uploadingDocument = false,
   activeDocumentActionId = null,
   resetting = false,
   subscriptionStatus,
+  onUploadDocument,
   onGrantDocumentConsent,
   onAnalyzeDocument,
   onDeleteDocument,
@@ -51,6 +58,29 @@ export function SettingsScreen({
   onSignOut,
   onManageSubscription,
 }: SettingsScreenProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadConsent, setUploadConsent] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(event.target.files ?? []);
+    if (!picked.length) return;
+    const invalid = picked.filter((f) => !ALLOWED_MIME.includes(f.type));
+    if (invalid.length) {
+      setUploadError("Apenas PDF, JPG e PNG são aceitos.");
+      event.target.value = "";
+      return;
+    }
+    setUploadError("");
+    try {
+      await onUploadDocument(picked);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Erro ao enviar arquivo.");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
   const confirmReset = async () => {
     const confirmed = window.confirm(
       "Tem certeza que deseja resetar seus dados? Essa ação remove histórico, memória e onboarding.",
@@ -138,6 +168,42 @@ export function SettingsScreen({
           >
             {loadingDocuments ? "Atualizando..." : "Atualizar lista"}
           </button>
+
+          <div data-testid="settings-upload-area" style={{ margin: "0.75rem 0" }}>
+            <label className="check-row" style={{ marginBottom: "0.5rem" }}>
+              <input
+                data-testid="settings-upload-consent-checkbox"
+                type="checkbox"
+                checked={uploadConsent}
+                onChange={(e) => setUploadConsent(e.target.checked)}
+              />
+              <span style={{ fontSize: "0.85rem" }}>
+                Autorizo a Medusa a analisar este documento para personalizar minhas respostas.
+              </span>
+            </label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              multiple
+              style={{ display: "none" }}
+              onChange={handleFileChange}
+              data-testid="settings-file-input"
+            />
+            <button
+              data-testid="settings-upload-button"
+              className="primary-btn"
+              disabled={!uploadConsent || uploadingDocument}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {uploadingDocument ? "Enviando..." : "Adicionar documento (PDF, JPG, PNG)"}
+            </button>
+            {uploadError ? (
+              <p className="status-error" data-testid="settings-upload-error" style={{ marginTop: "0.4rem" }}>
+                {uploadError}
+              </p>
+            ) : null}
+          </div>
 
           {documents.length === 0 ? (
             <p className="muted" data-testid="settings-documents-empty-state">Nenhum documento enviado ainda.</p>
