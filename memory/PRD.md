@@ -31,6 +31,8 @@ Construir a versão Web SaaS da Medusa em `/app/frontend-web` (React + Vite + Su
   - `stripe-webhook`
 - Secrets Stripe configurados no projeto para habilitar teste do fluxo de erro/detalhe.
 - Validação manual: checkout/portal retornando `detail` explícito no app (mensagem atual de chave inválida Stripe).
+- Chave Stripe real atualizada em secrets + novo `price_id` mensal criado (`price_1TfMlhABaLpOc2TmxZfuq60B`).
+- Revalidação manual: checkout e portal sem erro de API key no app (fluxo responde corretamente).
 
 ### Iteração atual — “Transformar em realidade” (fundação funcional)
 - **Estado ativo visível no topo** com indicador persistente: `Estado atual: <loop>`.

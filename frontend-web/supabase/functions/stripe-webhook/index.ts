@@ -64,13 +64,17 @@ serve(async (request) => {
         });
       }
 
-      await adminClient.from("subscriptions").upsert({
-        user_id: userId,
-        stripe_customer_id: typeof session.customer === "string" ? session.customer : null,
-        stripe_subscription_id: typeof session.subscription === "string" ? session.subscription : null,
-        status: "active",
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "user_id" });
+      try {
+        await adminClient.from("subscriptions").upsert({
+          user_id: userId,
+          stripe_customer_id: typeof session.customer === "string" ? session.customer : null,
+          stripe_subscription_id: typeof session.subscription === "string" ? session.subscription : null,
+          status: "active",
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "user_id" });
+      } catch {
+        // non-blocking for webhook acknowledgment
+      }
     }
 
     if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
@@ -81,16 +85,20 @@ serve(async (request) => {
           ? new Date(stripeSubscription.current_period_end * 1000).toISOString()
           : null;
 
-        await adminClient.from("subscriptions").upsert({
-          user_id: userId,
-          stripe_customer_id: typeof stripeSubscription.customer === "string" ? stripeSubscription.customer : null,
-          stripe_subscription_id: stripeSubscription.id,
-          stripe_price_id: stripeSubscription.items.data[0]?.price?.id ?? null,
-          status: mapStatus(stripeSubscription.status),
-          current_period_end: periodEnd,
-          cancel_at_period_end: Boolean(stripeSubscription.cancel_at_period_end),
-          updated_at: new Date().toISOString(),
-        }, { onConflict: "user_id" });
+        try {
+          await adminClient.from("subscriptions").upsert({
+            user_id: userId,
+            stripe_customer_id: typeof stripeSubscription.customer === "string" ? stripeSubscription.customer : null,
+            stripe_subscription_id: stripeSubscription.id,
+            stripe_price_id: stripeSubscription.items.data[0]?.price?.id ?? null,
+            status: mapStatus(stripeSubscription.status),
+            current_period_end: periodEnd,
+            cancel_at_period_end: Boolean(stripeSubscription.cancel_at_period_end),
+            updated_at: new Date().toISOString(),
+          }, { onConflict: "user_id" });
+        } catch {
+          // non-blocking for webhook acknowledgment
+        }
       }
     }
 

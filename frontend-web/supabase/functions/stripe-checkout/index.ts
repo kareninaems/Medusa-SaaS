@@ -104,13 +104,17 @@ serve(async (request) => {
       },
     });
 
-    await adminClient.from("subscriptions").upsert({
-      user_id: user.id,
-      stripe_customer_id: stripeCustomerId,
-      status: "pending",
-      stripe_price_id: stripePriceId,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: "user_id" });
+    try {
+      await adminClient.from("subscriptions").upsert({
+        user_id: user.id,
+        stripe_customer_id: stripeCustomerId,
+        status: "pending",
+        stripe_price_id: stripePriceId,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "user_id" });
+    } catch {
+      // non-blocking: checkout deve continuar funcionando mesmo sem tabela de subscriptions
+    }
 
     return new Response(JSON.stringify({
       checkout_url: checkoutSession.url,
