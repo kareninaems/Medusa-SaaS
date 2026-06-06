@@ -37,6 +37,7 @@ Construir a versão Web SaaS da Medusa em `/app/frontend-web` (React + Vite + Su
   - `?checkout=success` → mensagem de confirmação
   - `?checkout=cancel` → mensagem de cancelamento
 - Query param é limpo da URL após exibir o toast (evita repetição no reload).
+- Ajuste de robustez no checkout Stripe live: `payment_method_types: ["card"]` em `stripe-checkout` para evitar erro de métodos de pagamento não habilitados por moeda.
 
 ### Iteração atual — “Transformar em realidade” (fundação funcional)
 - **Estado ativo visível no topo** com indicador persistente: `Estado atual: <loop>`.
