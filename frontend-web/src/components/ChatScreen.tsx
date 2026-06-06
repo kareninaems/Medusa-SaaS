@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import type { ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
 
 import type { EnergyLevel, Message } from "../types/medusa";
 
@@ -10,11 +9,11 @@ interface ChatScreenProps {
   sending?: boolean;
   energy: EnergyLevel;
   onSend: (message: string) => Promise<void>;
+  onBack: () => void;
 }
 
-export function ChatScreen({ messages, sending = false, energy, onSend }: ChatScreenProps) {
+export function ChatScreen({ messages, sending = false, energy, onSend, onBack }: ChatScreenProps) {
   const [input, setInput] = useState("");
-  const navigate = useNavigate();
 
   const canSend = useMemo(() => !!input.trim() && !sending, [input, sending]);
 
@@ -68,15 +67,11 @@ export function ChatScreen({ messages, sending = false, energy, onSend }: ChatSc
   return (
     <section className="chat-layout" aria-live="polite">
       <header className="chat-header">
-        <button
-          className="ghost-btn chat-back-btn"
-          onClick={() => navigate("/")}
-          aria-label="Voltar ao menu"
-        >
-          ← Voltar
-        </button>
-        <h2>Medusa</h2>
-        <p className="muted">Energia {energy}. Resposta objetiva em até 3 passos.</p>
+        <button type="button" className="chat-back-btn" onClick={onBack}>← início</button>
+        <div>
+          <h2>Medusa</h2>
+          <p className="muted">Energia {energy}. Resposta objetiva em até 3 passos.</p>
+        </div>
       </header>
 
       <div className="messages-scroll" role="log" aria-label="Histórico do chat">
