@@ -67,11 +67,18 @@ serve(async (request) => {
       .eq("user_id", user.id)
       .maybeSingle();
 
-    if (subscriptionError) {
-      throw subscriptionError;
+    let stripeCustomerId: string | null = null;
+
+    if (!subscriptionError && subscription?.stripe_customer_id) {
+      stripeCustomerId = subscription.stripe_customer_id;
     }
 
-    if (!subscription?.stripe_customer_id) {
+    if (!stripeCustomerId && user.email) {
+      const customers = await stripe!.customers.list({ email: user.email, limit: 1 });
+      stripeCustomerId = customers.data[0]?.id ?? null;
+    }
+
+    if (!stripeCustomerId) {
       return new Response(JSON.stringify({ detail: "Assinatura não encontrada para esta conta" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -79,7 +86,7 @@ serve(async (request) => {
     }
 
     const portalSession = await stripe!.billingPortal.sessions.create({
-      customer: subscription.stripe_customer_id,
+      customer: stripeCustomerId,
       return_url: stripeCancelUrl,
     });
 
@@ -88,7 +95,11 @@ serve(async (request) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    const detail = error instanceof Error ? error.message : "Erro ao abrir portal";
+    const detail = error instanceof Error
+      ? error.message
+      : (typeof error === "object" && error !== null && "message" in error && typeof (error as { message?: unknown }).message === "string"
+        ? String((error as { message?: string }).message)
+        : "Erro ao abrir portal");
     return new Response(JSON.stringify({ detail }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -556,7 +556,11 @@ export async function getSubscription(userId: string): Promise<SubscriptionRow |
 }
 
 export async function createStripeCheckout(session: Session): Promise<{ checkout_url: string; session_id: string }> {
-  const data = await callAuthedEdgeFunction(session, "stripe-checkout");
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const data = await callAuthedEdgeFunction(session, "stripe-checkout", {
+    success_url: origin ? `${origin}/?checkout=success` : undefined,
+    cancel_url: origin ? `${origin}/?checkout=cancel` : undefined,
+  });
   return {
     checkout_url: String(data?.checkout_url ?? ""),
     session_id: String(data?.session_id ?? ""),

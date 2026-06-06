@@ -25,6 +25,12 @@ Construir a versão Web SaaS da Medusa em `/app/frontend-web` (React + Vite + Su
   - Status visível da assinatura (`inactive/active/...`).
 - Serviços adicionados em `medusa.ts` para checkout/portal + leitura de assinatura.
 - Fallback tratado quando a tabela `subscriptions` ainda não existe no projeto Supabase (não quebra bootstrap).
+- Deploy executado no Supabase projeto `wdjaggnxdbbovupfzslj` para:
+  - `stripe-checkout`
+  - `stripe-portal`
+  - `stripe-webhook`
+- Secrets Stripe configurados no projeto para habilitar teste do fluxo de erro/detalhe.
+- Validação manual: checkout/portal retornando `detail` explícito no app (mensagem atual de chave inválida Stripe).
 
 ### Iteração atual — “Transformar em realidade” (fundação funcional)
 - **Estado ativo visível no topo** com indicador persistente: `Estado atual: <loop>`.

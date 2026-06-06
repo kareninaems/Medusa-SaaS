@@ -120,7 +120,11 @@ serve(async (request) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    const detail = error instanceof Error ? error.message : "Erro ao criar checkout";
+    const detail = error instanceof Error
+      ? error.message
+      : (typeof error === "object" && error !== null && "message" in error && typeof (error as { message?: unknown }).message === "string"
+        ? String((error as { message?: string }).message)
+        : "Erro ao criar checkout");
     return new Response(JSON.stringify({ detail }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
