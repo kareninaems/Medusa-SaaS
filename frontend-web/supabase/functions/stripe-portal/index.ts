@@ -27,7 +27,7 @@ serve(async (req) => {
 
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
-    return json({ error: "Missing authorization" }, 401);
+    return json({ error: "Autorizacao ausente" }, 401);
   }
   const jwt = authHeader.slice(7);
 
@@ -37,7 +37,7 @@ serve(async (req) => {
   const returnUrl = Deno.env.get("STRIPE_PORTAL_RETURN_URL") ?? Deno.env.get("STRIPE_CANCEL_URL") ?? "";
 
   if (!stripeSecretKey) {
-    return json({ error: "Stripe not configured" }, 500);
+    return json({ error: "Stripe nao configurado" }, 500);
   }
 
   const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
@@ -45,7 +45,7 @@ serve(async (req) => {
   });
   const { data: { user }, error: userError } = await userClient.auth.getUser();
   if (userError || !user) {
-    return json({ error: "Invalid token" }, 401);
+    return json({ error: "Token invalido" }, 401);
   }
 
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
@@ -57,12 +57,12 @@ serve(async (req) => {
     .single();
 
   if (profileError) {
-    return json({ error: "Failed to load profile" }, 500);
+    return json({ error: "Falha ao carregar perfil" }, 500);
   }
 
   const customerId = profile?.stripe_customer_id;
   if (!customerId) {
-    return json({ error: "No active subscription found. Please subscribe first." }, 400);
+    return json({ error: "Nenhuma assinatura ativa encontrada. Assine primeiro." }, 400);
   }
 
   const stripeAuth = `Basic ${btoa(stripeSecretKey + ":")}`;
@@ -82,7 +82,7 @@ serve(async (req) => {
   if (!portalRes.ok) {
     const err = await portalRes.text();
     console.error("Stripe portal session error:", err);
-    return json({ error: "Failed to create portal session", detail: err }, 500);
+    return json({ error: "Falha ao criar portal de assinatura", detail: err }, 500);
   }
 
   const session = await portalRes.json();

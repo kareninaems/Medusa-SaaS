@@ -33,7 +33,7 @@ serve(async (req) => {
 
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+    return new Response(JSON.stringify({ error: "Nao autorizado" }), {
       status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
@@ -50,7 +50,7 @@ serve(async (req) => {
   });
   const { data: { user }, error: userError } = await userClient.auth.getUser();
   if (userError || !user) {
-    return new Response(JSON.stringify({ error: "Invalid token" }), {
+    return new Response(JSON.stringify({ error: "Token invalido" }), {
       status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

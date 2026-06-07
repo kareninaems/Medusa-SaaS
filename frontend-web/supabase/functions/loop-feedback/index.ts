@@ -13,7 +13,7 @@ serve(async (req) => {
 
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Nao autorizado" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -25,14 +25,14 @@ serve(async (req) => {
 
   const { data: { user }, error: userError } = await userClient.auth.getUser();
   if (userError || !user) {
-    return new Response(JSON.stringify({ error: "Invalid token" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Token invalido" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
   const body = await req.json();
   const { loop, triggeredIndices, energyLevel, positive } = body;
 
   if (!loop || !Array.isArray(triggeredIndices) || typeof energyLevel !== "number") {
-    return new Response(JSON.stringify({ error: "Missing fields" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Campos obrigatorios ausentes" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
   if (positive) {

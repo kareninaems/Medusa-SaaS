@@ -9,7 +9,7 @@ interface ChatScreenProps {
   sending?: boolean;
   energy: EnergyLevel;
   onSend: (message: string) => Promise<void>;
-  onBack: () => void;
+  onBack: () => void | Promise<void>;
 }
 
 export function ChatScreen({ messages, sending = false, energy, onSend, onBack }: ChatScreenProps) {

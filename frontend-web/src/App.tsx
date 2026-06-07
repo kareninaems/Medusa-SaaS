@@ -13,6 +13,7 @@ import { SettingsScreen } from "./components/SettingsScreen";
 import { PENDING_CONSENT_KEY, PRIVACY_VERSION, TERMS_VERSION } from "./constants/legal";
 import { supabase } from "./lib/supabase";
 import { detectLoop } from "./services/loopDetector";
+import { consolidateMemoryFromMessages } from "./services/memory-consolidation";
 import {
   triggerDocumentAnalysis,
   callClaudeProxy,
@@ -38,6 +39,7 @@ import {
   sendLoopFeedback,
   updateEnergy,
   updateOnboarding,
+  upsertMemory,
   uploadUserDocuments,
 } from "./services/medusa";
 import type {
@@ -71,6 +73,58 @@ const CRISIS_TERMS = [
   "remedio para morrer",
   "tomar remedio para morrer",
 ];
+
+const LOOP_LABELS: Record<string, string> = {
+  MINIONS: "Muitas tarefas, nenhuma avanca",
+  MERIDA_RILEY: "Tudo urgente, travada",
+  COIOTE: "Continuando algo que nao esta funcionando",
+  SISIFO: "Carregando tudo sozinha",
+  MICHAEL_SCOTT: "Muito confiante, sem revisao",
+  DON_QUIXOTE: "Perdendo nocao do tempo",
+  BURNOUT: "Energia critica, precisando de pausa",
+  ALTA_DEMANDA: "Sobrecarga sensorial",
+};
+
+function mergeUnique(existing: string[] = [], incoming: string[] = [], maxItems = 12): string[] {
+  const result: string[] = [];
+  [...existing, ...incoming].forEach((item) => {
+    const clean = item.trim();
+    if (!clean) return;
+    const normalized = clean
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+    const exists = result.some((value) =>
+      value
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase() === normalized
+    );
+    if (!exists && result.length < maxItems) result.push(clean);
+  });
+  return result;
+}
+
+function normalizeMemoryContext(context: MemoryRow["context"] | null | undefined): string[] {
+  if (!context) return [];
+  if (Array.isArray(context)) return context.filter((item): item is string => typeof item === "string");
+  return Object.entries(context).map(([key, value]) => `${key}: ${String(value)}`);
+}
+
+function getFriendlyLoopLabel(loop: string | null): string {
+  if (!loop) return "Em observacao";
+  return LOOP_LABELS[loop] ?? loop;
+}
+
+function getProfileName(profile: Profile | null, session: Session | null): string {
+  return (
+    profile?.onboarding?.name ||
+    profile?.onboarding?.display_name ||
+    profile?.display_name ||
+    session?.user.email?.split("@")[0] ||
+    "voce"
+  );
+}
 
 
 function hasCrisisSignal(text: string): boolean {
@@ -277,6 +331,7 @@ function ProductApp() {
   const [followUpId, setFollowUpId] = useState<number | null>(null);
   const [checkInEnergy, setCheckInEnergy] = useState<EnergyLevel | null>(null);
   const [checkInDone, setCheckInDone] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savingOnboarding, setSavingOnboarding] = useState(false);
@@ -351,6 +406,7 @@ function ProductApp() {
       setFollowUpId(pendingFollowUp?.id ?? null);
       setCheckInEnergy(null);
       setCheckInDone(canReuseConversation);
+      setShowWelcome(false);
     } catch (bootstrapError) {
       setError(bootstrapError instanceof Error ? bootstrapError.message : "Falha ao carregar dados");
     } finally {
@@ -454,6 +510,7 @@ function ProductApp() {
         onboardingWithAgeFallback,
       );
       setProfile(updatedProfile);
+      setShowWelcome(true);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Falha ao salvar onboarding");
     } finally {
@@ -473,6 +530,7 @@ function ProductApp() {
       setMessages([]);
       setCheckInEnergy(energy);
       setCheckInDone(true);
+      setShowWelcome(false);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Falha ao salvar check-in");
     } finally {
@@ -536,7 +594,9 @@ function ProductApp() {
           doc.id === documentId ? { ...updated, analysis_status: "analyzing" } : doc
         )
       );
-      triggerDocumentAnalysis(session, documentId);
+      const analysisResult = await triggerDocumentAnalysis(session, documentId);
+      if (!analysisResult.ok) throw new Error("Falha ao iniciar analise do documento");
+      await handleRefreshDocuments();
     } catch (consentError) {
       setError(consentError instanceof Error ? consentError.message : "Falha ao salvar consentimento");
     } finally {
@@ -568,12 +628,41 @@ function ProductApp() {
           doc.id === documentId ? { ...doc, analysis_status: "analyzing" } : doc
         )
       );
-      triggerDocumentAnalysis(session, documentId);
+      const analysisResult = await triggerDocumentAnalysis(session, documentId);
+      if (!analysisResult.ok) throw new Error("Falha ao iniciar analise do documento");
+      await handleRefreshDocuments();
     } catch (analyzeError) {
       setError(analyzeError instanceof Error ? analyzeError.message : "Falha ao analisar documento");
       await handleRefreshDocuments();
     } finally {
       setActiveDocumentActionId(null);
+    }
+  };
+
+  const consolidateCurrentSession = async (sourceMessages = messages) => {
+    if (!session || sourceMessages.length === 0) return;
+
+    const consolidated = consolidateMemoryFromMessages(sourceMessages);
+    const hasNewMemory =
+      consolidated.patterns.length > 0 ||
+      consolidated.triggers.length > 0 ||
+      consolidated.worked.length > 0 ||
+      consolidated.didnt_work.length > 0 ||
+      consolidated.context.length > 0;
+
+    if (!hasNewMemory) return;
+
+    try {
+      const updatedMemory = await upsertMemory(session.user.id, {
+        patterns: mergeUnique(memory?.patterns, consolidated.patterns),
+        triggers: mergeUnique(memory?.triggers, consolidated.triggers),
+        worked: mergeUnique(memory?.worked, consolidated.worked),
+        didnt_work: mergeUnique(memory?.didnt_work, consolidated.didnt_work),
+        context: mergeUnique(normalizeMemoryContext(memory?.context), consolidated.context, 16),
+      });
+      setMemory(updatedMemory);
+    } catch (memoryError) {
+      console.error("[memory-consolidation] Failed to persist memory", memoryError);
     }
   };
 
@@ -701,7 +790,13 @@ function ProductApp() {
     }
   };
 
+  const handleEndChatSession = async () => {
+    await consolidateCurrentSession();
+    setCheckInDone(false);
+  };
+
   const handleSignOut = async () => {
+    await consolidateCurrentSession();
     await supabase.auth.signOut();
   };
 
@@ -808,8 +903,7 @@ function ProductApp() {
   if (!isSubscribed) {
     return (
       <div className="app-shell">
-        <PaywallScreen onCheckout={handleCheckout} loading={checkingOut} />
-        {error ? <p className="status-error" data-testid="paywall-error">{error}</p> : null}
+        <PaywallScreen onCheckout={handleCheckout} loading={checkingOut} error={error} />
       </div>
     );
   }
@@ -820,6 +914,8 @@ function ProductApp() {
         <CheckInScreen
           loading={savingCheckIn}
           defaultEnergy={profile.energy_default}
+          showWelcome={showWelcome}
+          displayName={getProfileName(profile, session)}
           onConfirm={handleCheckIn}
         />
         {error ? <p className="status-error" data-testid="checkin-flow-error">{error}</p> : null}
@@ -864,7 +960,7 @@ function ProductApp() {
           <h1 className="app-title">Medusa</h1>
           <p className="muted" data-testid="current-energy-indicator">Energia atual: {currentEnergy}</p>
           <p className="muted" data-testid="active-loop-indicator">
-            Estado atual: {activeLoop.loop ?? "EM OBSERVACAO"}
+            Estado atual: {getFriendlyLoopLabel(activeLoop.loop)}
             {activeLoop.loop && activeLoop.confidence > 0 ? ` (${Math.round(activeLoop.confidence * 100)}%)` : ""}
           </p>
         </div>
@@ -925,7 +1021,7 @@ function ProductApp() {
         sending={sendingChat}
         energy={currentEnergy}
         onSend={handleSendMessage}
-        onBack={() => setCheckInDone(false)}
+        onBack={handleEndChatSession}
       />
     </div>
   );

@@ -8,10 +8,10 @@ export default defineConfig({
     host: "0.0.0.0",
     port: 3000,
     allowedHosts: true,
-    hmr: {
+    hmr: process.env.VITE_HMR_HOST ? {
       protocol: "wss",
-      host: "cogni-ios.preview.emergentagent.com",
+      host: process.env.VITE_HMR_HOST,
       clientPort: 443,
-    },
+    } : true,
   },
 })

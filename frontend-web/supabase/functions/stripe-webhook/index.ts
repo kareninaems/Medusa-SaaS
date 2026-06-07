@@ -52,15 +52,15 @@ serve(async (req) => {
 
   const valid = await verifyStripeSignature(body, signature, webhookSecret);
   if (!valid) {
-    console.error("Invalid Stripe webhook signature");
-    return new Response(JSON.stringify({ error: "Invalid signature" }), { status: 400 });
+    console.error("Assinatura invalida no webhook Stripe");
+    return new Response(JSON.stringify({ error: "Assinatura invalida" }), { status: 400 });
   }
 
   let event: { type: string; data: { object: Record<string, unknown> } };
   try {
     event = JSON.parse(body);
   } catch {
-    return new Response(JSON.stringify({ error: "Invalid JSON" }), { status: 400 });
+    return new Response(JSON.stringify({ error: "JSON invalido" }), { status: 400 });
   }
 
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
@@ -121,10 +121,10 @@ serve(async (req) => {
       }
 
       default:
-        console.log("Unhandled event type:", event.type);
+        console.log("Tipo de evento nao tratado:", event.type);
     }
   } catch (err) {
-    console.error("Error processing webhook event:", err);
+    console.error("Erro ao processar evento do webhook:", err);
     // Return 200 so Stripe doesn't retry — log for investigation
   }
 

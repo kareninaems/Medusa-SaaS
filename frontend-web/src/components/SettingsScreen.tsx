@@ -61,6 +61,8 @@ export function SettingsScreen({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadConsent, setUploadConsent] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetPhrase, setResetPhrase] = useState("");
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const picked = Array.from(event.target.files ?? []);
@@ -82,11 +84,10 @@ export function SettingsScreen({
   };
 
   const confirmReset = async () => {
-    const confirmed = window.confirm(
-      "Tem certeza que deseja resetar seus dados? Essa ação remove histórico, memória e onboarding.",
-    );
-    if (!confirmed) return;
+    if (resetPhrase !== "CONFIRMAR") return;
     await onReset();
+    setShowResetConfirm(false);
+    setResetPhrase("");
   };
 
   const confirmDeleteDocument = async (document: UserDocument) => {
@@ -136,10 +137,53 @@ export function SettingsScreen({
         <div className="setup-item">
           <strong>Resetar dados</strong>
           <span>Apaga histórico, memória e onboarding.</span>
-          <button data-testid="settings-reset-button" className="ghost-btn" onClick={confirmReset} disabled={resetting}>
+          <button
+            data-testid="settings-reset-button"
+            className="ghost-btn"
+            onClick={() => setShowResetConfirm(true)}
+            disabled={resetting}
+          >
             {resetting ? "Resetando" : "Resetar dados"}
           </button>
         </div>
+
+        {showResetConfirm ? (
+          <div className="setup-item" data-testid="settings-reset-confirmation">
+            <strong>Confirmar reset total</strong>
+            <span>
+              Isso apaga historico de chat, memoria, documentos vinculados, onboarding e configuracoes da conta.
+              Digite CONFIRMAR para liberar a acao.
+            </span>
+            <input
+              className="input"
+              data-testid="settings-reset-confirmation-input"
+              value={resetPhrase}
+              onChange={(event) => setResetPhrase(event.target.value)}
+              placeholder="CONFIRMAR"
+            />
+            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+              <button
+                data-testid="settings-reset-confirm-button"
+                className="primary-btn"
+                onClick={confirmReset}
+                disabled={resetting || resetPhrase !== "CONFIRMAR"}
+              >
+                {resetting ? "Resetando..." : "Confirmar reset"}
+              </button>
+              <button
+                data-testid="settings-reset-cancel-button"
+                className="ghost-btn"
+                onClick={() => {
+                  setShowResetConfirm(false);
+                  setResetPhrase("");
+                }}
+                disabled={resetting}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         <div className="setup-item">
           <strong>Sair</strong>
@@ -212,6 +256,7 @@ export function SettingsScreen({
               {documents.map((document) => {
                 const statusLabel = STATUS_LABELS[document.analysis_status] ?? "Enviado";
                 const isBusy = activeDocumentActionId === document.id;
+                const isAnalyzing = document.analysis_status === "analyzing";
                 return (
                   <article
                     className="document-item"
@@ -248,9 +293,19 @@ export function SettingsScreen({
 
                     {document.analysis_consent_at &&
                     (document.analysis_status === "awaiting_analysis" || document.analysis_status === "analyzing") ? (
-                      <p className="muted" data-testid={`settings-document-analyzing-info-${document.id}`}>
-                        Análise em andamento...
-                      </p>
+                      <>
+                        <p className="muted" data-testid={`settings-document-analyzing-info-${document.id}`}>
+                          {isAnalyzing ? "Analise em andamento..." : "Pronto para analisar."}
+                        </p>
+                        <button
+                          data-testid={`settings-document-analyze-button-${document.id}`}
+                          className="primary-btn"
+                          disabled={isBusy || isAnalyzing}
+                          onClick={() => onAnalyzeDocument(document.id)}
+                        >
+                          {isBusy || isAnalyzing ? "Analisando..." : "Analisar"}
+                        </button>
+                      </>
                     ) : null}
 
                     {document.analysis_consent_at && document.analysis_status === "error" ? (

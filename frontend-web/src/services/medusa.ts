@@ -426,15 +426,16 @@ export async function getPreviousConversation(
   return rows[0] ?? null;
 }
 
-export async function getMessages(conversationId: string): Promise<Message[]> {
+export async function getMessages(conversationId: string, limit = 50, offset = 0): Promise<Message[]> {
   const { data, error } = await supabase
     .from("messages")
     .select("id, conversation_id, user_id, role, content, energy, mode, created_at")
     .eq("conversation_id", conversationId)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
 
   if (error) throw error;
-  return (data ?? []) as Message[];
+  return ((data ?? []) as Message[]).reverse();
 }
 
 export async function getLatestAssistantMessage(conversationId: string): Promise<Message | null> {

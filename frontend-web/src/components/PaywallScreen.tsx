@@ -1,9 +1,10 @@
 interface PaywallScreenProps {
   onCheckout: () => Promise<void>;
   loading?: boolean;
+  error?: string;
 }
 
-export function PaywallScreen({ onCheckout, loading = false }: PaywallScreenProps) {
+export function PaywallScreen({ onCheckout, loading = false, error = "" }: PaywallScreenProps) {
   return (
     <div className="screen compact" data-testid="paywall-screen">
       <p className="eyebrow">Medusa Pro</p>
@@ -24,8 +25,18 @@ export function PaywallScreen({ onCheckout, loading = false }: PaywallScreenProp
         onClick={onCheckout}
         disabled={loading}
       >
-        {loading ? "Aguarde..." : "Assinar agora"}
+        {loading ? "Abrindo checkout..." : "Assinar agora"}
       </button>
+
+      {error ? (
+        <div className="status-error" data-testid="paywall-checkout-error" style={{ marginTop: "0.75rem" }}>
+          <strong>Checkout indisponivel.</strong>
+          <br />
+          {error}
+          <br />
+          Tente novamente em alguns instantes. Se persistir, verifique a configuracao da Edge Function Stripe.
+        </div>
+      ) : null}
 
       <button
         data-testid="paywall-restore-button"

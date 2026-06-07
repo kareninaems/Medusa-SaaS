@@ -29,7 +29,7 @@ serve(async (req) => {
 
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
-    return json({ error: "Missing authorization" }, 401);
+    return json({ error: "Autorizacao ausente" }, 401);
   }
   const jwt = authHeader.slice(7);
 
@@ -46,7 +46,7 @@ serve(async (req) => {
   });
   const { data: { user }, error: userError } = await userClient.auth.getUser();
   if (userError || !user) {
-    return json({ error: "Invalid token" }, 401);
+    return json({ error: "Token invalido" }, 401);
   }
 
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
@@ -60,7 +60,7 @@ serve(async (req) => {
 
   if (profileError) {
     console.error("Profile query error:", profileError);
-    return json({ error: "Failed to load profile" }, 500);
+    return json({ error: "Falha ao carregar perfil" }, 500);
   }
 
   let customerId: string = profile?.stripe_customer_id ?? "";
@@ -84,7 +84,7 @@ serve(async (req) => {
     if (!customerRes.ok) {
       const err = await customerRes.text();
       console.error("Stripe create customer error:", err);
-      return json({ error: "Failed to create Stripe customer", detail: err }, 500);
+      return json({ error: "Falha ao criar cliente no Stripe", detail: err }, 500);
     }
 
     const customer = await customerRes.json();
@@ -97,7 +97,7 @@ serve(async (req) => {
       .eq("id", user.id);
 
     if (updateError) {
-      console.error("Failed to save stripe_customer_id:", updateError);
+      console.error("Falha ao salvar stripe_customer_id:", updateError);
     }
   }
 
@@ -124,7 +124,7 @@ serve(async (req) => {
   if (!checkoutRes.ok) {
     const err = await checkoutRes.text();
     console.error("Stripe checkout session error:", err);
-    return json({ error: "Failed to create checkout session", detail: err }, 500);
+    return json({ error: "Falha ao criar sessao de checkout", detail: err }, 500);
   }
 
   const session = await checkoutRes.json();
