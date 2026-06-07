@@ -56,9 +56,10 @@ serve(async (req) => {
     .from("profiles")
     .select("stripe_customer_id")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
   if (profileError) {
+    console.error("Profile query error:", profileError);
     return json({ error: "Failed to load profile" }, 500);
   }
 
