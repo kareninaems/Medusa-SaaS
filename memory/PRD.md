@@ -38,6 +38,12 @@ Construir a versão Web SaaS da Medusa em `/app/frontend-web` (React + Vite + Su
   - `?checkout=cancel` → mensagem de cancelamento
 - Query param é limpo da URL após exibir o toast (evita repetição no reload).
 - Ajuste de robustez no checkout Stripe live: `payment_method_types: ["card"]` em `stripe-checkout` para evitar erro de métodos de pagamento não habilitados por moeda.
+- Correção de incidente em produção: erro Stripe `No valid payment method types for this Checkout Session` reapareceu.
+  - Ação: redeploy da função `stripe-checkout` com `payment_method_types: ["card"]` confirmado.
+  - Validação: chamada autenticada à função retornando `checkout_url` válido + teste E2E local redirecionando para `checkout.stripe.com`.
+- UX de resiliência adicionada no frontend:
+  - guardas de sessão agora exibem mensagem clara de sessão expirada (sem falha silenciosa);
+  - botão `Assinar agora` adicionado também no fluxo de onboarding (`onboarding-subscribe-now-button`).
 
 ### Iteração atual — “Transformar em realidade” (fundação funcional)
 - **Estado ativo visível no topo** com indicador persistente: `Estado atual: <loop>`.

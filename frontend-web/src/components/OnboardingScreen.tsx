@@ -4,9 +4,11 @@ import type { ProfileOnboarding } from "../types/medusa";
 
 interface OnboardingScreenProps {
   loading?: boolean;
+  billingLoading?: boolean;
   uploadingDocument?: boolean;
   defaultName: string;
   onUploadDocument: (file: File) => Promise<void>;
+  onStartCheckout: () => Promise<void>;
   onSave: (payload: { displayName: string; onboarding: ProfileOnboarding }) => Promise<void>;
 }
 
@@ -90,9 +92,11 @@ function toggleValue(current: string[], value: string) {
 
 export function OnboardingScreen({
   loading = false,
+  billingLoading = false,
   uploadingDocument = false,
   defaultName,
   onUploadDocument,
+  onStartCheckout,
   onSave,
 }: OnboardingScreenProps) {
   const [step, setStep] = useState(0);
@@ -595,6 +599,14 @@ export function OnboardingScreen({
         {renderStep()}
         {error ? <p className="status-error" data-testid="onboarding-error-message">{error}</p> : null}
         <div className="wizard-actions">
+          <button
+            data-testid="onboarding-subscribe-now-button"
+            className="ghost-btn"
+            onClick={onStartCheckout}
+            disabled={billingLoading}
+          >
+            {billingLoading ? "Abrindo checkout..." : "Assinar agora"}
+          </button>
           <button data-testid="onboarding-back-button" className="ghost-btn" onClick={prevStep} disabled={step === 0 || loading}>
             Voltar
           </button>

@@ -214,6 +214,15 @@ function isSameDay(isoDate: string): boolean {
   );
 }
 
+function ensureActiveSession(
+  session: Session | null,
+  setError: (message: string) => void,
+): session is Session {
+  if (session) return true;
+  setError("Sessão expirada. Faça login novamente para continuar.");
+  return false;
+}
+
 function ConsentGate({
   loading,
   onAccept,
@@ -477,7 +486,8 @@ function ProductApp() {
     displayName: string;
     onboarding: Profile["onboarding"];
   }) => {
-    if (!session || !payload.onboarding) return;
+    if (!payload.onboarding) return;
+    if (!ensureActiveSession(session, setError)) return;
     setSavingOnboarding(true);
     setError("");
     try {
@@ -508,7 +518,7 @@ function ProductApp() {
   };
 
   const handleCheckIn = async (energy: EnergyLevel) => {
-    if (!session) return;
+    if (!ensureActiveSession(session, setError)) return;
     setSavingCheckIn(true);
     setError("");
     try {
@@ -528,7 +538,7 @@ function ProductApp() {
   };
 
   const handleConfirmAge = async () => {
-    if (!session) return;
+    if (!ensureActiveSession(session, setError)) return;
     setConfirmingAge(true);
     setError("");
     try {
@@ -543,7 +553,7 @@ function ProductApp() {
   };
 
   const handleUploadDocument = async (file: File) => {
-    if (!session) return;
+    if (!ensureActiveSession(session, setError)) return;
     setUploadingDocument(true);
     setError("");
     try {
@@ -558,7 +568,7 @@ function ProductApp() {
   };
 
   const handleRefreshDocuments = async () => {
-    if (!session) return;
+    if (!ensureActiveSession(session, setError)) return;
     setLoadingDocuments(true);
     setError("");
     try {
@@ -572,7 +582,7 @@ function ProductApp() {
   };
 
   const handleGrantDocumentConsent = async (documentId: string) => {
-    if (!session) return;
+    if (!ensureActiveSession(session, setError)) return;
     setActiveDocumentActionId(documentId);
     setError("");
     try {
@@ -586,7 +596,7 @@ function ProductApp() {
   };
 
   const handleDeleteDocument = async (document: UserDocument) => {
-    if (!session) return;
+    if (!ensureActiveSession(session, setError)) return;
     setActiveDocumentActionId(document.id);
     setError("");
     try {
@@ -600,7 +610,7 @@ function ProductApp() {
   };
 
   const handleAnalyzeDocument = async (documentId: string) => {
-    if (!session) return;
+    if (!ensureActiveSession(session, setError)) return;
     setActiveDocumentActionId(documentId);
     setError("");
     try {
@@ -615,7 +625,7 @@ function ProductApp() {
   };
 
   const handleRefreshSubscription = async () => {
-    if (!session) return;
+    if (!ensureActiveSession(session, setError)) return;
     setBillingLoading(true);
     setError("");
     try {
@@ -629,7 +639,7 @@ function ProductApp() {
   };
 
   const handleStartCheckout = async () => {
-    if (!session) return;
+    if (!ensureActiveSession(session, setError)) return;
     setBillingLoading(true);
     setError("");
     try {
@@ -646,7 +656,7 @@ function ProductApp() {
   };
 
   const handleOpenPortal = async () => {
-    if (!session) return;
+    if (!ensureActiveSession(session, setError)) return;
     setBillingLoading(true);
     setError("");
     try {
@@ -754,7 +764,7 @@ function ProductApp() {
     didnt_work: string[];
     context: string[];
   }) => {
-    if (!session) return;
+    if (!ensureActiveSession(session, setError)) return;
     setSavingMemory(true);
     setError("");
     try {
@@ -768,7 +778,7 @@ function ProductApp() {
   };
 
   const handleReset = async () => {
-    if (!session) return;
+    if (!ensureActiveSession(session, setError)) return;
     setResetting(true);
     setError("");
     try {
@@ -787,7 +797,7 @@ function ProductApp() {
   };
 
   const handleAcceptConsent = async () => {
-    if (!session) return;
+    if (!ensureActiveSession(session, setError)) return;
     setSavingConsent(true);
     setError("");
     try {
@@ -845,9 +855,11 @@ function ProductApp() {
       <div className="app-shell">
         <OnboardingScreen
           loading={savingOnboarding}
+          billingLoading={billingLoading}
           uploadingDocument={uploadingDocument}
           defaultName={session.user.email?.split("@")[0] ?? "usuário"}
           onUploadDocument={handleUploadDocument}
+          onStartCheckout={handleStartCheckout}
           onSave={handleOnboardingSave}
         />
         {error ? <p className="status-error" data-testid="onboarding-flow-error">{error}</p> : null}
