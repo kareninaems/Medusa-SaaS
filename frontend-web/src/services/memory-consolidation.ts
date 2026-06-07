@@ -1,6 +1,6 @@
-import type { Message } from "../types/medusa";
+import type { Message, MemoryRow } from "../types/medusa";
 
-export interface ConsolidationResult {
+interface ConsolidationResult {
   patterns: string[];
   triggers: string[];
   worked: string[];
@@ -8,136 +8,104 @@ export interface ConsolidationResult {
   context: string[];
 }
 
-const DEFAULT_LIMIT = 80;
-const MAX_ITEMS = 8;
+// Keywords indicativas de padrões comportamentais
+const PATTERN_SIGNALS: Record<string, string[]> = {
+  "procrastinação": ["procrastin", "deixei para depois", "nao comecei", "nao consegui comecar", "emperrei"],
+  "hiperfoco": ["hiperfoco", "fiquei horas", "perdi a nocao do tempo", "so conseguia pensar nisso"],
+  "paralisia por análise": ["paralisi", "travei", "nao conseguia decidir", "muitas opcoes", "ficou grande demais"],
+  "sobrecarga sensorial": ["barulho", "luz", "estimulo", "fone de ouvido", "nao conseguia focar com"],
+  "esquecimento": ["esqueci", "nao lembrei", "nao anotei", "sumiu da cabeca"],
+  "impulsividade": ["sem pensar", "ja fiz antes de", "reagir antes", "mandei sem revisar"],
+  "perfeccionismo": ["nao estava bom o suficiente", "precisava estar perfeito", "refiz varias vezes", "nao publiquei porque"],
+};
 
-const TRIGGER_KEYWORDS = [
-  "barulho",
-  "prazo",
-  "urgente",
-  "sobrecarga",
-  "travada",
-  "travado",
-  "ansiedade",
-  "muita gente",
-  "sem energia",
-  "cansada",
-  "cansado",
-  "dispersa",
-  "disperso",
+const TRIGGER_SIGNALS = [
+  "quando eu", "isso me trava", "me estresso com", "me paralisa", "me desregula",
+  "nao suporto", "me irrita", "fico ansioso quando", "me sobrecarrega", "nao consigo quando",
+  "tenho dificuldade com", "o que me atrapalha", "me bloqueia",
 ];
 
-const WORKED_MARKERS = [
-  "funcionou",
-  "ajudou",
-  "deu certo",
-  "consegui",
-  "foi bom",
-  "melhorou",
-  "me organizou",
-  "foi util",
+const WORKED_SIGNALS = [
+  "funcionou", "ajudou", "consegui quando", "o que funcionou", "deu certo",
+  "me ajudou a", "resolveu", "fez diferenca", "me desbloqueou", "voltei a conseguir",
+  "o que deu certo", "estrategia que funcionou",
 ];
 
-const DIDNT_WORK_MARKERS = [
-  "nao funcionou",
-  "não funcionou",
-  "nao consegui",
-  "não consegui",
-  "falhou",
-  "travei",
-  "piorei",
-  "nao ajudou",
-  "não ajudou",
-  "me perdi",
+const DIDNT_WORK_SIGNALS = [
+  "nao funcionou", "nao adiantou", "tentei e nao", "de nada adiantou",
+  "pior ainda", "fez piorar", "nao resolveu", "continuei travada", "nao me ajudou",
 ];
 
 function normalize(text: string): string {
   return text
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .toLowerCase();
 }
 
-function compactSnippet(text: string): string {
-  const clean = text.replace(/\s+/g, " ").trim();
-  return clean.length > 140 ? `${clean.slice(0, 137)}...` : clean;
-}
-
-function addUnique(target: string[], value: string) {
-  const clean = compactSnippet(value);
-  if (!clean) return;
-  const alreadyExists = target.some((item) => normalize(item) === normalize(clean));
-  if (!alreadyExists && target.length < MAX_ITEMS) target.push(clean);
-}
-
-function collectMarkedSnippets(messages: Message[], markers: string[]): string[] {
-  const result: string[] = [];
-  messages.forEach((message) => {
-    if (message.role !== "user") return;
-    const normalized = normalize(message.content);
-    if (markers.some((marker) => normalized.includes(normalize(marker)))) {
-      addUnique(result, message.content);
+function extractSentencesContaining(messages: Message[], signals: string[]): string[] {
+  const found: string[] = [];
+  for (const msg of messages) {
+    if (msg.role !== "user") continue;
+    const norm = normalize(msg.content);
+    const sentences = msg.content.split(/[.!?\n]+/);
+    for (const sentence of sentences) {
+      const normSentence = normalize(sentence);
+      if (signals.some((s) => normSentence.includes(s))) {
+        const trimmed = sentence.trim();
+        if (trimmed.length > 10 && trimmed.length < 120) {
+          found.push(trimmed);
+        }
+      }
     }
-  });
-  return result;
+    void norm;
+  }
+  return [...new Set(found)].slice(0, 5);
 }
 
-function collectTriggers(messages: Message[]): string[] {
-  const triggers: string[] = [];
-  const combined = normalize(messages.filter((message) => message.role === "user").map((message) => message.content).join(" "));
-  TRIGGER_KEYWORDS.forEach((keyword) => {
-    if (combined.includes(normalize(keyword))) {
-      addUnique(triggers, keyword);
-    }
-  });
-  return triggers;
-}
-
-function collectPatterns(messages: Message[]): string[] {
-  const patterns: string[] = [];
-  const userMessages = messages.filter((message) => message.role === "user");
-  const energyValues = userMessages
-    .map((message) => message.energy)
-    .filter((energy): energy is number => typeof energy === "number");
-
-  if (energyValues.length >= 3) {
-    const lowEnergyCount = energyValues.filter((energy) => energy <= 1).length;
-    if (lowEnergyCount >= Math.ceil(energyValues.length * 0.5)) {
-      addUnique(patterns, "Energia baixa aparece com frequencia nas conversas recentes.");
+function detectPatterns(messages: Message[]): string[] {
+  const found: string[] = [];
+  for (const msg of messages) {
+    if (msg.role !== "user") continue;
+    const norm = normalize(msg.content);
+    for (const [pattern, signals] of Object.entries(PATTERN_SIGNALS)) {
+      if (signals.some((s) => norm.includes(s))) {
+        found.push(pattern);
+      }
     }
   }
-
-  const combined = normalize(userMessages.map((message) => message.content).join(" "));
-  if (combined.includes("nao sei por onde comeco") || combined.includes("nao sei por onde começar")) {
-    addUnique(patterns, "Costuma travar quando precisa escolher o primeiro passo.");
-  }
-  if (combined.includes("muitas tarefas") || combined.includes("mil coisas") || combined.includes("tudo urgente")) {
-    addUnique(patterns, "Sobrecarga por muitas demandas ao mesmo tempo.");
-  }
-  if (combined.includes("prazo") || combined.includes("entrega") || combined.includes("deadline")) {
-    addUnique(patterns, "Pressao de prazo aparece como fator recorrente.");
-  }
-
-  return patterns;
+  return [...new Set(found)].slice(0, 5);
 }
 
-function collectContext(messages: Message[]): string[] {
-  const context: string[] = [];
-  const lastUserMessages = messages.filter((message) => message.role === "user").slice(-3);
-  lastUserMessages.forEach((message) => addUnique(context, `Conversa recente: ${message.content}`));
-  return context;
-}
-
-export function consolidateMemoryFromMessages(messages: Message[], limit = DEFAULT_LIMIT): ConsolidationResult {
-  const recentMessages = messages
-    .filter((message) => message.role === "user" || message.role === "assistant")
-    .slice(-limit);
+export function consolidateMemoryFromMessages(messages: Message[]): ConsolidationResult {
+  if (!messages.length) {
+    return { patterns: [], triggers: [], worked: [], didnt_work: [], context: [] };
+  }
 
   return {
-    patterns: collectPatterns(recentMessages),
-    triggers: collectTriggers(recentMessages),
-    worked: collectMarkedSnippets(recentMessages, WORKED_MARKERS),
-    didnt_work: collectMarkedSnippets(recentMessages, DIDNT_WORK_MARKERS),
-    context: collectContext(recentMessages),
+    patterns: detectPatterns(messages),
+    triggers: extractSentencesContaining(messages, TRIGGER_SIGNALS),
+    worked: extractSentencesContaining(messages, WORKED_SIGNALS),
+    didnt_work: extractSentencesContaining(messages, DIDNT_WORK_SIGNALS),
+    context: [],
+  };
+}
+
+// Mescla resultado da consolidação com memória existente, sem duplicar
+export function mergeMemory(
+  existing: MemoryRow | null,
+  consolidated: ConsolidationResult,
+): Partial<MemoryRow> {
+  const merge = (existing: string[], fresh: string[]) =>
+    [...new Set([...existing, ...fresh])].slice(0, 15);
+
+  return {
+    patterns: merge(existing?.patterns ?? [], consolidated.patterns),
+    triggers: merge(existing?.triggers ?? [], consolidated.triggers),
+    worked: merge(existing?.worked ?? [], consolidated.worked),
+    didnt_work: merge(existing?.didnt_work ?? [], consolidated.didnt_work),
+    context: Array.isArray(existing?.context)
+      ? merge(existing.context as string[], consolidated.context)
+      : consolidated.context,
   };
 }

@@ -1,10 +1,30 @@
+import { useState } from "react";
+
 interface PaywallScreenProps {
   onCheckout: () => Promise<void>;
+  onRestoreSubscription?: () => Promise<void>;
   loading?: boolean;
   error?: string;
 }
 
-export function PaywallScreen({ onCheckout, loading = false, error = "" }: PaywallScreenProps) {
+export function PaywallScreen({
+  onCheckout,
+  onRestoreSubscription,
+  loading = false,
+  error = "",
+}: PaywallScreenProps) {
+  const [restoringSubscription, setRestoringSubscription] = useState(false);
+
+  const handleRestore = async () => {
+    if (!onRestoreSubscription) return;
+    setRestoringSubscription(true);
+    try {
+      await onRestoreSubscription();
+    } finally {
+      setRestoringSubscription(false);
+    }
+  };
+
   return (
     <div className="screen compact" data-testid="paywall-screen">
       <p className="eyebrow">Medusa Pro</p>
@@ -19,34 +39,36 @@ export function PaywallScreen({ onCheckout, loading = false, error = "" }: Paywa
         {import.meta.env.VITE_SUBSCRIPTION_PRICE ?? "R$ 29,90 / mês"}
       </p>
 
-      <button
-        data-testid="paywall-checkout-button"
-        className="primary-btn"
-        onClick={onCheckout}
-        disabled={loading}
-      >
-        {loading ? "Abrindo checkout..." : "Assinar agora"}
-      </button>
-
       {error ? (
-        <div className="status-error" data-testid="paywall-checkout-error" style={{ marginTop: "0.75rem" }}>
-          <strong>Checkout indisponivel.</strong>
+        <div className="status-error" data-testid="paywall-checkout-error" style={{ marginBottom: "0.75rem" }}>
+          <strong>Checkout indisponível.</strong>
           <br />
           {error}
           <br />
-          Tente novamente em alguns instantes. Se persistir, verifique a configuracao da Edge Function Stripe.
+          Tente novamente em alguns instantes.
         </div>
       ) : null}
 
       <button
-        data-testid="paywall-restore-button"
-        className="ghost-btn"
+        data-testid="paywall-checkout-button"
+        className="primary-btn"
         onClick={onCheckout}
-        disabled={loading}
-        style={{ marginTop: "0.75rem" }}
+        disabled={loading || restoringSubscription}
       >
-        Já tenho assinatura
+        {loading ? "Abrindo checkout..." : "Assinar agora"}
       </button>
+
+      {onRestoreSubscription ? (
+        <button
+          data-testid="paywall-restore-button"
+          className="ghost-btn"
+          onClick={handleRestore}
+          disabled={loading || restoringSubscription}
+          style={{ marginTop: "0.75rem" }}
+        >
+          {restoringSubscription ? "Verificando..." : "Já tenho assinatura"}
+        </button>
+      ) : null}
     </div>
   );
 }

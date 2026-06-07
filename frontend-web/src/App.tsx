@@ -54,6 +54,17 @@ import type {
 
 type FollowUpAnswer = "sim" | "parcial" | "nao";
 
+const LOOP_LABELS: Record<string, string> = {
+  MINIONS: "Muitas tarefas, nenhuma avança",
+  MERIDA_RILEY: "Tudo urgente, travada",
+  COIOTE: "Continuando algo que não está funcionando",
+  SISIFO: "Carregando tudo sozinha",
+  MICHAEL_SCOTT: "Muito confiante, sem revisão",
+  DON_QUIXOTE: "Perdendo noção do tempo",
+  BURNOUT: "Energia crítica — precisando de pausa",
+  ALTA_DEMANDA: "Sobrecarga sensorial",
+};
+
 const CRISIS_SAFE_FALLBACK =
   "Isso e risco imediato. Eu nao vou tentar resolver isso por chat.\n" +
   "Se voce esta em perigo agora, ligue 188 (CVV), 192 (SAMU) ou 190, ou va para uma emergencia.\n" +
@@ -345,6 +356,7 @@ function ProductApp() {
   const [activeDocumentActionId, setActiveDocumentActionId] = useState<string | null>(null);
   const [checkingOut, setCheckingOut] = useState(false);
   const [error, setError] = useState("");
+  const [justCompletedOnboarding, setJustCompletedOnboarding] = useState(false);
 
   const onboardingMissing = useMemo(() => {
     if (!profile?.onboarding) return true;
@@ -903,14 +915,30 @@ function ProductApp() {
   if (!isSubscribed) {
     return (
       <div className="app-shell">
-        <PaywallScreen onCheckout={handleCheckout} loading={checkingOut} error={error} />
+        <PaywallScreen
+          onCheckout={handleCheckout}
+          onRestoreSubscription={handlePortal}
+          loading={checkingOut}
+          error={error || undefined}
+        />
       </div>
     );
   }
 
   if (!checkInDone) {
+    const displayName = profile.onboarding?.name ?? profile.display_name ?? null;
     return (
       <div className="app-shell">
+        {justCompletedOnboarding ? (
+          <div className="signal-card" data-testid="welcome-message" style={{ margin: "1rem 1rem 0" }}>
+            <p className="signal-title">
+              {displayName ? `Bem-vinda, ${displayName}!` : "Bem-vinda ao Medusa!"}
+            </p>
+            <p className="signal-copy">
+              Seu perfil está pronto. Cada conversa vai ser adaptada ao seu jeito de funcionar.
+            </p>
+          </div>
+        ) : null}
         <CheckInScreen
           loading={savingCheckIn}
           defaultEnergy={profile.energy_default}
