@@ -10,8 +10,10 @@ import { CrisisPage, PrivacyPage, TermsPage } from "./components/LegalPages";
 import { MemoryScreen } from "./components/MemoryScreen";
 import { OnboardingScreen } from "./components/OnboardingScreen";
 import { PricingScreen } from "./components/PricingScreen";
+import ProtectedRoute from "./components/ProtectedRoute";
 import { SettingsScreen } from "./components/SettingsScreen";
 import { PENDING_CONSENT_KEY, PRIVACY_VERSION, TERMS_VERSION } from "./constants/legal";
+import { diasRestantes, isTrialAtivo } from "./lib/trial";
 import { supabase } from "./lib/supabase";
 import {
   analyzeDocument,
@@ -26,9 +28,7 @@ import {
   getLatestConversation,
   getPreviousConversation,
   getRecentMessagesByUser,
-  getTrialDaysRemaining,
   getSubscription,
-  isTrialActive,
   grantDocumentAnalysisConsent,
   getMemory,
   getMessages,
@@ -366,11 +366,13 @@ function ProductApp({ viewMode = "app" }: { viewMode?: ProductViewMode }) {
   const isAdmin = profile?.role === "admin" || session?.user?.email === "admin@medusa.app";
   const trialDaysRemaining = useMemo(() => {
     const source = session?.user?.created_at ?? profile?.created_at ?? null;
-    return getTrialDaysRemaining(source, 7);
+    if (!source) return 0;
+    return diasRestantes(source);
   }, [profile?.created_at, session?.user?.created_at]);
   const trialActive = useMemo(() => {
     const source = session?.user?.created_at ?? profile?.created_at ?? null;
-    return isTrialActive(source, 7);
+    if (!source) return false;
+    return isTrialAtivo(source);
   }, [profile?.created_at, session?.user?.created_at]);
   const subscriptionActive = useMemo(() => {
     if (!subscription) return false;
@@ -1106,8 +1108,22 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<ProductApp viewMode="app" />} />
-      <Route path="/pricing" element={<ProductApp viewMode="pricing" />} />
-      <Route path="/admin" element={<ProductApp viewMode="admin" />} />
+      <Route
+        path="/pricing"
+        element={
+          <ProtectedRoute>
+            <ProductApp viewMode="pricing" />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute>
+            <ProductApp viewMode="admin" />
+          </ProtectedRoute>
+        }
+      />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/crisis" element={<CrisisPage />} />

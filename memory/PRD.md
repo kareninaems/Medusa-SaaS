@@ -13,7 +13,9 @@ Construir a versão Web SaaS da Medusa em `/app/frontend-web` (React + Vite + Su
 
 ### Iteração atual — Admin + Trial 7 dias + Paywall fluido
 - Novo modo de acesso com trial de **7 dias corridos** por `created_at` da conta (`isTrialActive` + `getTrialDaysRemaining`).
+- Helpers de trial também adicionados em `src/lib/trial.ts` (`isTrialAtivo`, `diasRestantes`).
 - **Bypass admin** no frontend (acesso total) com rota dedicada `/admin`.
+- Novo `ProtectedRoute` em `src/components/ProtectedRoute.tsx` para reforçar guardas de sessão/trial/admin nas rotas críticas.
 - Nova rota `/pricing` com CTA de checkout (`Assinar agora`) e bloqueio natural após fim do trial para usuários comuns.
 - Banner de trial no app com dias restantes + link de assinatura.
 - CTA de assinatura adicionado também em Auth (`auth-pricing-link`) e onboarding (`onboarding-subscribe-now-button`).
