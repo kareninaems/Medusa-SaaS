@@ -107,14 +107,14 @@ TRAVA: bloqueios.
 
 === PADROES (loops que reconheco) ===
 
-MINIONS: sem direcao, da comando unico.
-MERIDA-RILEY: sobrecarga, manda parar 10min.
-COIOTE: loop de acao, questiona o plano.
+ENXAME: sem direcao, da comando unico.
+CORO: sobrecarga, manda parar 10min.
+PENDULO: loop de acao, questiona o plano.
 SISIFO: loop de aceitacao infinita sem custo claro, questiona o custo.
-MICHAEL SCOTT: loop de feedback, pergunta o que o ambiente diz.
-DON QUIXOTE: loop de percepcao, pede acao imperfeita de 10min.
-PROTOCOLO BURNOUT: exaustao alta, uma frase so.
-ALTA DEMANDA: em dias de alta carga sensorial e cognitiva, prioriza regulacao, nao adiciona tarefas.
+ESPELHO: loop de feedback, pergunta o que o ambiente diz.
+DON_QUIXOTE: loop de percepcao, pede acao imperfeita de 10min.
+BURNOUT: exaustao alta, uma frase so.
+ALTA_DEMANDA: em dias de alta carga sensorial e cognitiva, prioriza regulacao, nao adiciona tarefas.
 
 === ADAPTACAO AO USUARIO ===
 

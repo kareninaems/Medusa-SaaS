@@ -55,11 +55,11 @@ import type {
 type FollowUpAnswer = "sim" | "parcial" | "nao";
 
 const LOOP_LABELS: Record<string, string> = {
-  MINIONS: "Muitas tarefas, nenhuma avança",
-  MERIDA_RILEY: "Tudo urgente, travada",
-  COIOTE: "Continuando algo que não está funcionando",
+  ENXAME: "Muitas tarefas, nenhuma avança",
+  CORO: "Tudo urgente, travada",
+  PENDULO: "Continuando algo que não está funcionando",
   SISIFO: "Carregando tudo sozinha",
-  MICHAEL_SCOTT: "Muito confiante, sem revisão",
+  ESPELHO: "Muito confiante, sem revisão",
   DON_QUIXOTE: "Perdendo noção do tempo",
   BURNOUT: "Energia crítica — precisando de pausa",
   ALTA_DEMANDA: "Sobrecarga sensorial",
@@ -85,16 +85,6 @@ const CRISIS_TERMS = [
   "tomar remedio para morrer",
 ];
 
-const LOOP_LABELS: Record<string, string> = {
-  MINIONS: "Muitas tarefas, nenhuma avanca",
-  MERIDA_RILEY: "Tudo urgente, travada",
-  COIOTE: "Continuando algo que nao esta funcionando",
-  SISIFO: "Carregando tudo sozinha",
-  MICHAEL_SCOTT: "Muito confiante, sem revisao",
-  DON_QUIXOTE: "Perdendo nocao do tempo",
-  BURNOUT: "Energia critica, precisando de pausa",
-  ALTA_DEMANDA: "Sobrecarga sensorial",
-};
 
 function mergeUnique(existing: string[] = [], incoming: string[] = [], maxItems = 12): string[] {
   const result: string[] = [];
