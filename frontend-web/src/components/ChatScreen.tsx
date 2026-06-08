@@ -7,14 +7,23 @@ import type { EnergyLevel, Message } from "../types/medusa";
 interface ChatScreenProps {
   messages: Message[];
   sending?: boolean;
+  inputBlocked?: boolean;
+  remainingInteractions?: number | null;
   energy: EnergyLevel;
   onSend: (message: string) => Promise<void>;
 }
 
-export function ChatScreen({ messages, sending = false, energy, onSend }: ChatScreenProps) {
+export function ChatScreen({
+  messages,
+  sending = false,
+  inputBlocked = false,
+  remainingInteractions = null,
+  energy,
+  onSend,
+}: ChatScreenProps) {
   const [input, setInput] = useState("");
 
-  const canSend = useMemo(() => !!input.trim() && !sending, [input, sending]);
+  const canSend = useMemo(() => !!input.trim() && !sending && !inputBlocked, [input, sending, inputBlocked]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -71,6 +80,12 @@ export function ChatScreen({ messages, sending = false, energy, onSend }: ChatSc
       </header>
 
       <div className="messages-scroll" role="log" aria-label="Histórico do chat">
+        {remainingInteractions !== null && remainingInteractions <= 10 ? (
+          <p className="status-error" data-testid="chat-remaining-interactions-banner">
+            Você tem {remainingInteractions} interação(ões) restante(s) hoje.
+          </p>
+        ) : null}
+
         {messages.length === 0 ? (
           <p className="muted">Sem histórico ainda. Próximo passo: escreva uma pergunta objetiva.</p>
         ) : null}
@@ -90,11 +105,17 @@ export function ChatScreen({ messages, sending = false, energy, onSend }: ChatSc
         <textarea
           className="input textarea composer-input"
           value={input}
+          disabled={inputBlocked}
           onChange={(event) => setInput(event.target.value)}
-          placeholder="Descreva o que está pegando agora."
+          placeholder={
+            inputBlocked
+              ? "Limite diário atingido. Volte amanhã para continuar."
+              : "Descreva o que está pegando agora."
+          }
+          data-testid="chat-composer-textarea"
         />
         <div className="composer-actions">
-          <button type="submit" className="primary-btn" disabled={!canSend}>
+          <button type="submit" className="primary-btn" disabled={!canSend} data-testid="chat-composer-send-button">
             {sending ? "Enviando..." : "Enviar"}
           </button>
         </div>

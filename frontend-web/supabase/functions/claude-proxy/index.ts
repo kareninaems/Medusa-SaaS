@@ -103,11 +103,107 @@ const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
 
 const MAX_DOCUMENTS_IN_CONTEXT = 5;
 const MAX_DOCUMENT_CONTEXT_CHARS = 4000;
+const DAILY_INTERACTION_LIMIT = 50;
 
 interface DocumentContextRow {
   file_name: string | null;
   extracted_summary: string | null;
   uploaded_at: string;
+}
+
+interface DailyInteractionControl {
+  isAdmin: boolean;
+  interactionCount: number;
+  limitReached: boolean;
+  trackingEnabled: boolean;
+}
+
+async function getDailyInteractionControl(userId: string): Promise<DailyInteractionControl> {
+  const hoje = new Date().toISOString().split("T")[0];
+
+  const { data: profile, error } = await adminClient
+    .from("profiles")
+    .select("role, interacoes_hoje, data_interacoes")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) {
+    const msg = (error.message || "").toLowerCase();
+    if (msg.includes("interacoes_hoje") || msg.includes("data_interacoes") || msg.includes("column")) {
+      return {
+        isAdmin: false,
+        interactionCount: 0,
+        limitReached: false,
+        trackingEnabled: false,
+      };
+    }
+
+    throw new Error("Falha ao carregar perfil");
+  }
+
+  if (!profile) {
+    return {
+      isAdmin: false,
+      interactionCount: 0,
+      limitReached: false,
+      trackingEnabled: false,
+    };
+  }
+
+  const isAdmin = profile.role === "admin";
+  if (isAdmin) {
+    return {
+      isAdmin: true,
+      interactionCount: Number(profile.interacoes_hoje ?? 0),
+      limitReached: false,
+      trackingEnabled: true,
+    };
+  }
+
+  let interactionCount = Number(profile.interacoes_hoje ?? 0);
+  const dataInteracoes = profile.data_interacoes as string | null;
+
+  if (dataInteracoes !== hoje) {
+    const { error: resetError } = await adminClient
+      .from("profiles")
+      .update({
+        interacoes_hoje: 0,
+        data_interacoes: hoje,
+      })
+      .eq("id", userId);
+
+    if (resetError) {
+      throw new Error("Falha ao resetar interações do dia");
+    }
+
+    interactionCount = 0;
+  }
+
+  return {
+    isAdmin: false,
+    interactionCount,
+    limitReached: interactionCount >= DAILY_INTERACTION_LIMIT,
+    trackingEnabled: true,
+  };
+}
+
+async function incrementDailyInteraction(userId: string, currentCount: number): Promise<number> {
+  const nextCount = currentCount + 1;
+  const hoje = new Date().toISOString().split("T")[0];
+
+  const { error } = await adminClient
+    .from("profiles")
+    .update({
+      interacoes_hoje: nextCount,
+      data_interacoes: hoje,
+    })
+    .eq("id", userId);
+
+  if (error) {
+    throw new Error("Falha ao registrar interação do dia");
+  }
+
+  return nextCount;
 }
 
 async function loadAnalyzedDocumentsForContext(userId: string): Promise<DocumentContextRow[]> {
@@ -246,6 +342,7 @@ serve(async (request) => {
 
   let crisisDetected = false;
   let activeUserId: string | null = null;
+  let interactionControl: DailyInteractionControl | null = null;
 
   try {
     const authHeader = request.headers.get("Authorization") || "";
@@ -278,6 +375,22 @@ serve(async (request) => {
     }
 
     activeUserId = user.id;
+
+    interactionControl = await getDailyInteractionControl(user.id);
+    if (interactionControl.trackingEnabled && interactionControl.limitReached) {
+      return new Response(
+        JSON.stringify({
+          reply: "🐙 Você já conversou bastante comigo hoje. Seu cérebro merece uma pausa. Nos falamos amanhã, combinado?",
+          model: "daily-limit",
+          limitReached: true,
+          interacoesRestantes: 0,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
 
     const payload = (await request.json()) as ClaudeProxyPayload;
     const safeMessages = (payload.messages || [])
@@ -449,10 +562,18 @@ serve(async (request) => {
       cacheReadTokens: usage.cache_read_input_tokens ?? usage.cache_read_tokens,
     });
 
+    let interacoesRestantes: number | undefined;
+    if (interactionControl && interactionControl.trackingEnabled && !interactionControl.isAdmin) {
+      const newCount = await incrementDailyInteraction(user.id, interactionControl.interactionCount);
+      interacoesRestantes = Math.max(0, DAILY_INTERACTION_LIMIT - newCount);
+    }
+
     return new Response(
       JSON.stringify({
         reply,
         model: anthropicModel,
+        limitReached: false,
+        interacoesRestantes,
       }),
       {
         status: 200,

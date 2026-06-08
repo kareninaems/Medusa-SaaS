@@ -11,6 +11,7 @@ import type {
   Profile,
   ProfileOnboarding,
   AdminStats,
+  ClaudeProxyResponse,
   SubscriptionRow,
   UserDocument,
   UserConsent,
@@ -633,7 +634,7 @@ export async function upsertMemory(
 export async function callClaudeProxy(
   session: Session,
   payload: ClaudeProxyPayload,
-): Promise<{ reply: string; model: string }> {
+): Promise<ClaudeProxyResponse> {
   const { data, error } = await supabase.functions.invoke(functionName, {
     body: payload,
     headers: {
@@ -649,6 +650,9 @@ export async function callClaudeProxy(
   return {
     reply: data.reply,
     model: data?.model ?? "claude",
+    limitReached: Boolean(data?.limitReached),
+    interacoesRestantes:
+      typeof data?.interacoesRestantes === "number" ? data.interacoesRestantes : undefined,
   };
 }
 

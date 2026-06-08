@@ -20,6 +20,8 @@ create table if not exists public.profiles (
 alter table public.profiles add column if not exists role text default 'user';
 alter table public.profiles drop constraint if exists profiles_role_check;
 alter table public.profiles add constraint profiles_role_check check (role in ('user', 'admin'));
+alter table public.profiles add column if not exists interacoes_hoje int default 0;
+alter table public.profiles add column if not exists data_interacoes date;
 
 alter table public.profiles add column if not exists terms_accepted_at timestamptz;
 alter table public.profiles add column if not exists privacy_accepted_at timestamptz;

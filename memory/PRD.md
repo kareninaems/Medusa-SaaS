@@ -16,6 +16,20 @@ Construir a versão Web SaaS da Medusa em `/app/frontend-web` (React + Vite + Su
 - Helpers de trial também adicionados em `src/lib/trial.ts` (`isTrialAtivo`, `diasRestantes`).
 - **Bypass admin** no frontend (acesso total) com rota dedicada `/admin`.
 - Novo `ProtectedRoute` em `src/components/ProtectedRoute.tsx` para reforçar guardas de sessão/trial/admin nas rotas críticas.
+
+### Iteração atual — Proteção de custo (limite diário de IA)
+- Adicionadas colunas planejadas no schema: `profiles.interacoes_hoje` e `profiles.data_interacoes`.
+- `claude-proxy` atualizado com controle diário de interações:
+  - limite de 50 interações/dia para usuário comum;
+  - bypass total para admin;
+  - reset automático diário;
+  - incremento **somente após sucesso** da chamada ao Claude;
+  - retorno amigável com `limitReached: true` quando atingir limite (sem chamar IA).
+- Frontend atualizado para interpretar `limitReached`:
+  - bloqueio do input do chat;
+  - placeholder amigável de limite atingido;
+  - suporte a `interacoesRestantes` quando disponível.
+- Deploy da Edge Function `claude-proxy` realizado no projeto Supabase.
 - Nova rota `/pricing` com CTA de checkout (`Assinar agora`) e bloqueio natural após fim do trial para usuários comuns.
 - Banner de trial no app com dias restantes + link de assinatura.
 - CTA de assinatura adicionado também em Auth (`auth-pricing-link`) e onboarding (`onboarding-subscribe-now-button`).

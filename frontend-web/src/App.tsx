@@ -311,6 +311,8 @@ function ProductApp({ viewMode = "app" }: { viewMode?: ProductViewMode }) {
   const [memory, setMemory] = useState<MemoryRow | null>(null);
   const [recentSignals, setRecentSignals] = useState<Message[]>([]);
   const [followUpAction, setFollowUpAction] = useState<string | null>(null);
+  const [inputBlocked, setInputBlocked] = useState(false);
+  const [remainingInteractions, setRemainingInteractions] = useState<number | null>(null);
   const [checkInEnergy, setCheckInEnergy] = useState<EnergyLevel | null>(null);
   const [checkInDone, setCheckInDone] = useState(false);
   const [tab, setTab] = useState<AppTab>("chat");
@@ -429,6 +431,8 @@ function ProductApp({ viewMode = "app" }: { viewMode?: ProductViewMode }) {
       setSubscription(loadedSubscription);
       setRecentSignals(loadedRecentSignals);
       setFollowUpAction(nextFollowUpAction);
+      setInputBlocked(false);
+      setRemainingInteractions(null);
       setCheckInEnergy(null);
       setCheckInDone(canReuseConversation);
       setTab("chat");
@@ -730,6 +734,14 @@ function ProductApp({ viewMode = "app" }: { viewMode?: ProductViewMode }) {
         onboarding: profile.onboarding ? { ...profile.onboarding, display_name: profile.display_name } : null,
         memory,
       });
+
+      if (proxyResponse.limitReached) {
+        setInputBlocked(true);
+      }
+
+      if (typeof proxyResponse.interacoesRestantes === "number") {
+        setRemainingInteractions(proxyResponse.interacoesRestantes);
+      }
 
       const assistantMessage = await insertMessage({
         conversation_id: conversation.id,
@@ -1072,6 +1084,8 @@ function ProductApp({ viewMode = "app" }: { viewMode?: ProductViewMode }) {
           <ChatScreen
             messages={messages}
             sending={sendingChat}
+            inputBlocked={inputBlocked}
+            remainingInteractions={remainingInteractions}
             energy={currentEnergy}
             onSend={handleSendMessage}
           />

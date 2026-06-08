@@ -40,6 +40,8 @@ export interface Profile {
   privacy_accepted_at: string | null;
   terms_version: string | null;
   privacy_version: string | null;
+  interacoes_hoje?: number | null;
+  data_interacoes?: string | null;
 }
 
 export interface UserDocument {
@@ -136,4 +138,11 @@ export interface ClaudeProxyPayload {
     analysis_consent_at: string;
     analysis_consent_version: string | null;
   }>;
+}
+
+export interface ClaudeProxyResponse {
+  reply: string;
+  model: string;
+  limitReached?: boolean;
+  interacoesRestantes?: number;
 }
