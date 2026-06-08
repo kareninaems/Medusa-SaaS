@@ -591,6 +591,36 @@ select:focus-visible {
   gap: 10px;
 }
 
+.pricing-card {
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  padding: 12px;
+}
+
+.admin-card p {
+  margin-top: 8px;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
 .legal-shell {
   width: min(760px, 100%);
   padding-top: 20px;
@@ -659,6 +689,10 @@ blockquote {
 
   .msg {
     max-width: 100%;
+  }
+
+  .admin-grid {
+    grid-template-columns: 1fr;
   }
 
   .msg-user {

@@ -10,6 +10,7 @@ import type {
   Message,
   Profile,
   ProfileOnboarding,
+  AdminStats,
   SubscriptionRow,
   UserDocument,
   UserConsent,
@@ -553,6 +554,37 @@ export async function getSubscription(userId: string): Promise<SubscriptionRow |
     throw error;
   }
   return data ? normalizeSubscription(data as Record<string, unknown>) : null;
+}
+
+function isTrialFromCreatedAt(createdAt: string, days = 7): boolean {
+  const base = new Date(createdAt).getTime();
+  if (!Number.isFinite(base)) return false;
+  const elapsed = Date.now() - base;
+  const total = days * 24 * 60 * 60 * 1000;
+  return elapsed <= total;
+}
+
+export function isTrialActive(createdAt?: string | null, days = 7): boolean {
+  if (!createdAt) return false;
+  return isTrialFromCreatedAt(createdAt, days);
+}
+
+export function getTrialDaysRemaining(createdAt?: string | null, days = 7): number {
+  if (!createdAt) return 0;
+  const base = new Date(createdAt).getTime();
+  if (!Number.isFinite(base)) return 0;
+  const diffDays = (Date.now() - base) / (1000 * 60 * 60 * 24);
+  const remaining = Math.ceil(days - diffDays);
+  return remaining > 0 ? remaining : 0;
+}
+
+export async function getAdminStats(session: Session): Promise<AdminStats> {
+  const data = await callAuthedEdgeFunction(session, "admin-stats");
+  return {
+    usuarios: Number(data?.usuarios ?? 0),
+    assinantes: Number(data?.assinantes ?? 0),
+    trial: Number(data?.trial ?? 0),
+  };
 }
 
 export async function createStripeCheckout(session: Session): Promise<{ checkout_url: string; session_id: string }> {

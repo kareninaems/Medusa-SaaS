@@ -11,6 +11,19 @@ Construir a versão Web SaaS da Medusa em `/app/frontend-web` (React + Vite + Su
 
 ## Implementado
 
+### Iteração atual — Admin + Trial 7 dias + Paywall fluido
+- Novo modo de acesso com trial de **7 dias corridos** por `created_at` da conta (`isTrialActive` + `getTrialDaysRemaining`).
+- **Bypass admin** no frontend (acesso total) com rota dedicada `/admin`.
+- Nova rota `/pricing` com CTA de checkout (`Assinar agora`) e bloqueio natural após fim do trial para usuários comuns.
+- Banner de trial no app com dias restantes + link de assinatura.
+- CTA de assinatura adicionado também em Auth (`auth-pricing-link`) e onboarding (`onboarding-subscribe-now-button`).
+- Novo componente `AdminPanel` com métricas básicas e fallback seguro.
+- Nova Edge Function `admin-stats` (deploy realizado) para métricas administrativas autenticadas.
+- Reforço do fluxo Stripe live: checkout validado retornando `checkout_url` e redirecionando para `checkout.stripe.com`.
+
+### Observação de produção
+- O domínio `medusaet.com` testado estava servindo um build diferente do estado local desta branch (UI/fluxo antigo). Para refletir estas correções, é necessário redeploy do frontend atualizado.
+
 ### Iteração atual — Stripe mensal (frontend-web, base funcional)
 - Criada estrutura de assinatura em `supabase/schema.sql` com tabela `subscriptions` + RLS.
 - Implementadas Edge Functions Stripe:
@@ -160,9 +173,11 @@ Construir a versão Web SaaS da Medusa em `/app/frontend-web` (React + Vite + Su
 1. Executar `frontend-web/supabase/schema.sql` no Supabase de produção/dev ativo.
 2. Confirmar bucket privado `user-documents` criado e políticas de Storage/RLS ativas.
 3. Revalidar upload PDF com sucesso ponta a ponta após migration.
+4. Executar SQL de role admin no Supabase de produção (`profiles.role`) e promover usuário admin.
+5. Redeploy do frontend web em produção para refletir rotas `/pricing` e `/admin` desta versão.
 
 ### P1
-1. Integração Stripe mensal (checkout + webhook + portal) — **não iniciada nesta rodada**.
+1. Integração Stripe mensal (checkout + webhook + portal) — **iniciada e funcional no checkout**; concluir sync total de status no painel admin após migration de role.
 2. Exibir badge visual mais forte para documento com consentimento registrado.
 3. Soft delete opcional com `deleted_at` (em vez de hard delete) para trilha de auditoria.
 4. Tela de detalhes por documento (sem IA) com histórico de mudanças de status.

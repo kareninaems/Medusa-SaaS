@@ -77,6 +77,7 @@ export function AuthScreen({ onAuthDone }: AuthScreenProps) {
         <p className="eyebrow">Medusa</p>
         <h1>{mode === "login" ? "Entrar" : "Criar conta"}</h1>
         <p className="auth-sub">Ferramenta de uso diário. Sem distrações.</p>
+        <a href="/pricing" className="ghost-btn" data-testid="auth-pricing-link">Assinar agora</a>
 
         <form className="stack" onSubmit={handleSubmit} data-testid="auth-form">
           <div className="toggle-row">

@@ -30,6 +30,7 @@ export interface ProfileOnboarding {
 export interface Profile {
   id: string;
   created_at: string;
+  role: "user" | "admin" | null;
   display_name: string | null;
   onboarding: ProfileOnboarding | null;
   energy_default: EnergyLevel | null;
@@ -85,6 +86,12 @@ export interface SubscriptionRow {
   cancel_at_period_end: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface AdminStats {
+  usuarios: number;
+  assinantes: number;
+  trial: number;
 }
 
 export interface Conversation {

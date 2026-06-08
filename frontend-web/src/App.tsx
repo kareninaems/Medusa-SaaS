@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { Route, Routes, Link } from "react-router-dom";
+import { Route, Routes, Link, Navigate } from "react-router-dom";
 
+import { AdminPanel } from "./components/AdminPanel";
 import { AuthScreen } from "./components/AuthScreen";
 import { ChatScreen } from "./components/ChatScreen";
 import { CheckInScreen } from "./components/CheckInScreen";
 import { CrisisPage, PrivacyPage, TermsPage } from "./components/LegalPages";
 import { MemoryScreen } from "./components/MemoryScreen";
 import { OnboardingScreen } from "./components/OnboardingScreen";
+import { PricingScreen } from "./components/PricingScreen";
 import { SettingsScreen } from "./components/SettingsScreen";
 import { PENDING_CONSENT_KEY, PRIVACY_VERSION, TERMS_VERSION } from "./constants/legal";
 import { supabase } from "./lib/supabase";
@@ -24,7 +26,9 @@ import {
   getLatestConversation,
   getPreviousConversation,
   getRecentMessagesByUser,
+  getTrialDaysRemaining,
   getSubscription,
+  isTrialActive,
   grantDocumentAnalysisConsent,
   getMemory,
   getMessages,
@@ -51,6 +55,7 @@ import type {
 type AppTab = "chat" | "setup";
 type FollowUpAnswer = "sim" | "parcial" | "não";
 type CheckoutNoticeType = "success" | "cancel";
+type ProductViewMode = "app" | "pricing" | "admin";
 
 const CRISIS_SAFE_FALLBACK =
   "Isso é risco imediato. Eu não vou tentar resolver isso por chat.\n" +
@@ -296,7 +301,7 @@ function AgeGate({
   );
 }
 
-function ProductApp() {
+function ProductApp({ viewMode = "app" }: { viewMode?: ProductViewMode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [conversation, setConversation] = useState<Conversation | null>(null);
@@ -358,6 +363,25 @@ function ProductApp() {
   const activeLoop = useMemo(() => detectActiveLoop(messages), [messages]);
   const memoryHighlights = useMemo(() => buildMemoryHighlights(memory), [memory]);
   const burnoutSignals = useMemo(() => computeBurnoutSignals(recentSignals), [recentSignals]);
+  const isAdmin = profile?.role === "admin" || session?.user?.email === "admin@medusa.app";
+  const trialDaysRemaining = useMemo(() => {
+    const source = session?.user?.created_at ?? profile?.created_at ?? null;
+    return getTrialDaysRemaining(source, 7);
+  }, [profile?.created_at, session?.user?.created_at]);
+  const trialActive = useMemo(() => {
+    const source = session?.user?.created_at ?? profile?.created_at ?? null;
+    return isTrialActive(source, 7);
+  }, [profile?.created_at, session?.user?.created_at]);
+  const subscriptionActive = useMemo(() => {
+    if (!subscription) return false;
+    if (subscription.status === "active" || subscription.status === "trialing") return true;
+    if (subscription.current_period_end) {
+      const periodEnd = new Date(subscription.current_period_end).getTime();
+      return Number.isFinite(periodEnd) && periodEnd > Date.now();
+    }
+    return false;
+  }, [subscription]);
+  const paywallAllowed = isAdmin || trialActive || subscriptionActive;
 
   const bootstrap = async (activeSession: Session) => {
     setLoading(true);
@@ -673,7 +697,7 @@ function ProductApp() {
   };
 
   const handleSendMessage = async (text: string) => {
-    if (!session || !conversation || !profile) return;
+    if (!ensureActiveSession(session, setError) || !conversation || !profile) return;
     setSendingChat(true);
     setError("");
     const mode = "ACAO";
@@ -832,7 +856,29 @@ function ProductApp() {
     );
   }
 
-  if (needsAgeConfirmation) {
+  if (viewMode === "admin") {
+    if (!isAdmin) {
+      return <Navigate to="/" replace />;
+    }
+
+    return (
+      <div className="app-shell">
+        <header className="top-bar">
+          <div className="brand-block">
+            <p className="eyebrow">Medusa</p>
+            <h1 className="app-title">Admin</h1>
+            <p className="muted" data-testid="admin-header-role">Acesso administrativo</p>
+          </div>
+          <nav className="top-tabs">
+            <Link to="/" className="ghost-btn" data-testid="admin-back-to-app-link">Voltar ao app</Link>
+          </nav>
+        </header>
+        <AdminPanel session={session} />
+      </div>
+    );
+  }
+
+  if (!isAdmin && needsAgeConfirmation) {
     return (
       <div className="app-shell">
         <AgeGate loading={confirmingAge} onConfirm={handleConfirmAge} />
@@ -841,7 +887,7 @@ function ProductApp() {
     );
   }
 
-  if (needsConsent(profile)) {
+  if (!isAdmin && needsConsent(profile)) {
     return (
       <div className="app-shell">
         <ConsentGate loading={savingConsent} onAccept={handleAcceptConsent} />
@@ -850,7 +896,7 @@ function ProductApp() {
     );
   }
 
-  if (onboardingMissing) {
+  if (!isAdmin && onboardingMissing) {
     return (
       <div className="app-shell">
         <OnboardingScreen
@@ -867,7 +913,20 @@ function ProductApp() {
     );
   }
 
-  if (!checkInDone) {
+  if (viewMode === "pricing" || (!isAdmin && !paywallAllowed)) {
+    return (
+      <div className="app-shell">
+        <PricingScreen
+          trialDaysRemaining={trialDaysRemaining}
+          billingLoading={billingLoading}
+          onStartCheckout={handleStartCheckout}
+        />
+        {error ? <p className="status-error" data-testid="pricing-flow-error">{error}</p> : null}
+      </div>
+    );
+  }
+
+  if (!isAdmin && !checkInDone) {
     return (
       <div className="app-shell">
         <CheckInScreen
@@ -893,6 +952,12 @@ function ProductApp() {
           </p>
         </div>
         <nav className="top-tabs">
+          {isAdmin ? (
+            <Link to="/admin" className="ghost-btn" data-testid="top-tab-admin-link">Admin</Link>
+          ) : null}
+          {!isAdmin && trialActive ? (
+            <Link to="/pricing" className="ghost-btn" data-testid="top-tab-pricing-link">Planos</Link>
+          ) : null}
           <button
             data-testid="top-tab-chat-button"
             className={`ghost-btn ${tab === "chat" ? "active-tab" : ""}`}
@@ -911,6 +976,18 @@ function ProductApp() {
       </header>
 
       {error ? <p className="status-error" data-testid="product-app-error">{error}</p> : null}
+      {!isAdmin && trialActive ? (
+        <div className="status-ok" data-testid="trial-banner">
+          <div className="status-inline-row">
+            <span data-testid="trial-banner-text">
+              ⏳ Você tem {trialDaysRemaining} dia(s) gratuitos restantes.
+            </span>
+            <Link to="/pricing" className="ghost-btn" data-testid="trial-banner-subscribe-link">
+              Assinar agora
+            </Link>
+          </div>
+        </div>
+      ) : null}
       {checkoutNotice ? (
         <div
           className={checkoutNotice.type === "success" ? "status-ok" : "status-error"}
@@ -1028,11 +1105,13 @@ function ProductApp() {
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<ProductApp />} />
+      <Route path="/" element={<ProductApp viewMode="app" />} />
+      <Route path="/pricing" element={<ProductApp viewMode="pricing" />} />
+      <Route path="/admin" element={<ProductApp viewMode="admin" />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/crisis" element={<CrisisPage />} />
-      <Route path="*" element={<ProductApp />} />
+      <Route path="*" element={<ProductApp viewMode="app" />} />
     </Routes>
   );
 }

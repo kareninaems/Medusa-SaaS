@@ -17,6 +17,10 @@ create table if not exists public.profiles (
   privacy_version text
 );
 
+alter table public.profiles add column if not exists role text default 'user';
+alter table public.profiles drop constraint if exists profiles_role_check;
+alter table public.profiles add constraint profiles_role_check check (role in ('user', 'admin'));
+
 alter table public.profiles add column if not exists terms_accepted_at timestamptz;
 alter table public.profiles add column if not exists privacy_accepted_at timestamptz;
 alter table public.profiles add column if not exists terms_version text;
