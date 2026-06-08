@@ -17,6 +17,7 @@ import { detectLoop } from "./services/loopDetector";
 import { consolidateMemoryFromMessages } from "./services/memory-consolidation";
 import {
   triggerDocumentAnalysis,
+  gerarMemoria,
   callClaudeProxy,
   confirmAge,
   createCheckoutSession,
@@ -330,6 +331,7 @@ function ProductApp() {
   const [memory, setMemory] = useState<MemoryRow | null>(null);
   const [recentSignals, setRecentSignals] = useState<Message[]>([]);
   const [followUpAction, setFollowUpAction] = useState<string | null>(null);
+  const [followUpResumo, setFollowUpResumo] = useState<string | null>(null);
   const [followUpId, setFollowUpId] = useState<number | null>(null);
   const [checkInEnergy, setCheckInEnergy] = useState<EnergyLevel | null>(null);
   const [checkInDone, setCheckInDone] = useState(false);
@@ -401,6 +403,7 @@ function ProductApp() {
       // Pull pending follow-up from DB (set by extract-followup Edge Function at end of session)
       const pendingFollowUp = await getPendingFollowUp(activeSession.user.id);
       const nextFollowUpAction = pendingFollowUp?.task_summary ?? null;
+      const nextFollowUpResumo = (pendingFollowUp as { resumo_conversa?: string } | null)?.resumo_conversa ?? null;
 
       setProfile(ensuredProfile);
       setConversation(canReuseConversation ? latestConversation : null);
@@ -409,6 +412,7 @@ function ProductApp() {
       setDocuments(loadedDocuments);
       setRecentSignals(loadedRecentSignals);
       setFollowUpAction(nextFollowUpAction);
+      setFollowUpResumo(nextFollowUpResumo);
       setFollowUpId(pendingFollowUp?.id ?? null);
       setCheckInEnergy(null);
       setCheckInDone(canReuseConversation);
@@ -821,11 +825,17 @@ function ProductApp() {
 
   const handleEndChatSession = async () => {
     await consolidateCurrentSession();
+    if (session && messages.length >= 2) {
+      gerarMemoria(session, conversation?.id ?? null, messages).catch(() => {});
+    }
     setCheckInDone(false);
   };
 
   const handleSignOut = async () => {
     await consolidateCurrentSession();
+    if (session && messages.length >= 2) {
+      await gerarMemoria(session, conversation?.id ?? null, messages).catch(() => {});
+    }
     await supabase.auth.signOut();
   };
 
@@ -1069,8 +1079,11 @@ function ProductApp() {
 
         {followUpAction ? (
           <div className="signal-card signal-followup" data-testid="followup-card">
-            <p className="signal-title">Follow-up automatico</p>
-            <p className="signal-copy">Ontem voce combinou: {followUpAction}</p>
+            <p className="signal-title">Continuando de onde paramos</p>
+            {followUpResumo ? (
+              <p className="signal-copy" style={{ fontSize: "0.8rem", opacity: 0.75 }}>{followUpResumo}</p>
+            ) : null}
+            <p className="signal-copy">Você combinou: <strong>{followUpAction}</strong></p>
             <div className="followup-actions">
               <button
                 data-testid="followup-answer-yes-button"

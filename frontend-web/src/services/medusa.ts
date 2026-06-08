@@ -623,6 +623,18 @@ export async function extractFollowUp(
   return data as FollowUpResult;
 }
 
+export async function gerarMemoria(
+  session: Session,
+  conversationId: string | null,
+  messages: Array<{ role: string; content: string }>,
+): Promise<void> {
+  if (messages.length < 2) return;
+  await supabase.functions.invoke("gerar-memoria", {
+    body: { conversation_id: conversationId, messages },
+    headers: { Authorization: `Bearer ${session.access_token}` },
+  });
+}
+
 export async function getPendingFollowUp(userId: string): Promise<{ id: number; task_summary: string; context: string | null } | null> {
   const { data, error } = await supabase
     .from("follow_ups")
