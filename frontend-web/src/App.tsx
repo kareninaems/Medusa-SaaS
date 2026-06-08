@@ -828,7 +828,7 @@ function ProductApp() {
   const handleEndChatSession = async () => {
     await consolidateCurrentSession();
     if (session && messages.length >= 2) {
-      gerarMemoria(session, conversation?.id ?? null, messages).catch(() => {});
+      gerarMemoria(session, conversation?.id ?? null, messages, checkInEnergy).catch(() => {});
     }
     setCheckInDone(false);
   };
@@ -836,7 +836,7 @@ function ProductApp() {
   const handleSignOut = async () => {
     await consolidateCurrentSession();
     if (session && messages.length >= 2) {
-      await gerarMemoria(session, conversation?.id ?? null, messages).catch(() => {});
+      await gerarMemoria(session, conversation?.id ?? null, messages, checkInEnergy).catch(() => {});
     }
     await supabase.auth.signOut();
   };

@@ -138,6 +138,93 @@ function buildTimeInstruction(time: TimeSince, ultimoContexto: string | null): s
   }
 }
 
+// ── Timeline / Sessoes Diarias ───────────────────────────────────────────────
+
+interface SessaoDiaria {
+  data: string;
+  energia_media: number | null;
+  energia_minima: number | null;
+  loops_detectados: string[] | null;
+  resumo_emocional: string | null;
+  resumo_sessao: string | null;
+}
+
+interface TimelineContext {
+  sessoes: SessaoDiaria[];
+  diasEnergiaBaixa: number;
+  tendencia: "caindo" | "subindo" | "estavel" | "insuficiente";
+  alertaBurnout: boolean;
+}
+
+async function loadTimeline(userId: string): Promise<TimelineContext> {
+  const seisDiasAtras = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
+  const { data } = await adminClient
+    .from("sessoes_diarias")
+    .select("data, energia_media, energia_minima, loops_detectados, resumo_emocional, resumo_sessao")
+    .eq("user_id", userId)
+    .gte("data", seisDiasAtras)
+    .order("data", { ascending: false })
+    .limit(7);
+
+  const sessoes: SessaoDiaria[] = (data ?? []) as SessaoDiaria[];
+
+  const diasEnergiaBaixa = sessoes.filter(
+    (s) => s.energia_minima !== null && s.energia_minima <= 1,
+  ).length;
+
+  // Tendencia: compara media dos ultimos 2 dias vs 2 anteriores
+  const medias = sessoes.map((s) => s.energia_media).filter((e): e is number => e !== null);
+  let tendencia: TimelineContext["tendencia"] = "insuficiente";
+  if (medias.length >= 3) {
+    const recentes = medias.slice(0, 2).reduce((a, b) => a + b, 0) / 2;
+    const anteriores = medias.slice(2, 4).reduce((a, b) => a + b, 0) / Math.max(medias.slice(2, 4).length, 1);
+    if (recentes < anteriores - 0.3) tendencia = "caindo";
+    else if (recentes > anteriores + 0.3) tendencia = "subindo";
+    else tendencia = "estavel";
+  }
+
+  return {
+    sessoes,
+    diasEnergiaBaixa,
+    tendencia,
+    alertaBurnout: diasEnergiaBaixa >= 3,
+  };
+}
+
+function timelineToPrompt(timeline: TimelineContext): string {
+  if (timeline.sessoes.length === 0) return "";
+
+  const parts: string[] = [];
+
+  if (timeline.alertaBurnout) {
+    parts.push(
+      `ALERTA BURNOUT ATIVO: usuario com energia minima <= 1 por ${timeline.diasEnergiaBaixa} dias consecutivos. ` +
+      `Protocolo BURNOUT: uma frase so, sem tarefas, acolha primeiro.`,
+    );
+  } else if (timeline.tendencia === "caindo") {
+    parts.push(`TENDENCIA: energia caindo nos ultimos dias. Aborde com cuidado extra, nao empilhe tarefas.`);
+  } else if (timeline.tendencia === "subindo") {
+    parts.push(`TENDENCIA: energia subindo. Pode aproveitar o momento com mais estrutura.`);
+  }
+
+  const linhas = timeline.sessoes.slice(0, 5).map((s) => {
+    const loops = s.loops_detectados?.length ? s.loops_detectados.join(", ") : "nenhum";
+    const energia = s.energia_media !== null ? `energia ${s.energia_media.toFixed(1)}` : "energia n/r";
+    return `${s.data}: ${energia} | loops: ${loops}${s.resumo_emocional ? ` | estado: ${s.resumo_emocional}` : ""}`;
+  });
+
+  parts.push(`HISTORICO RECENTE (${timeline.sessoes.length} dias):\n${linhas.join("\n")}`);
+
+  // Resumo da ultima sessao
+  const ultima = timeline.sessoes[0];
+  if (ultima?.resumo_sessao) {
+    parts.push(`ULTIMA SESSAO (${ultima.data}): ${ultima.resumo_sessao}`);
+  }
+
+  return `LINHA DO TEMPO DO USUARIO:\n${parts.join("\n\n")}`;
+}
+
 // ───────────────────────────────────────────────────────────────────────────
 
 interface DocumentContextRow {
@@ -191,6 +278,7 @@ function buildContext(
   analyzedDocuments: DocumentContextRow[],
   timeSince: TimeSince,
   ultimoContexto: string | null,
+  timeline: TimelineContext | null,
 ): string {
   const onboarding = payload.onboarding;
   const sessionMode = payload.mode || detectMode(safeMessages.at(-1)?.content || "");
@@ -207,11 +295,14 @@ function buildContext(
   const documentsProfile = documentsToPrompt(analyzedDocuments);
   const outputInstruction = buildOutputInstruction(payload.energy, undefined);
   const timeInstruction = buildTimeInstruction(timeSince, ultimoContexto);
+  const timelineProfile = timeline ? timelineToPrompt(timeline) : "";
 
   return `
 ${onboardingProfile || "PERFIL DO USUARIO: nao informado."}
 
 ${memoryProfile || "MEMORIA PERSISTENTE DO USUARIO: nao informada."}
+
+${timelineProfile || "LINHA DO TEMPO: sem registros anteriores."}
 
 ${documentsProfile || "DOCUMENTOS ANALISADOS DO USUARIO: nenhum."}
 
@@ -225,6 +316,7 @@ CONTEXTO DA SESSAO:
 - Modo atual: ${sessionMode}
 - Loop comportamental detectado: ${payload.activeLoop ?? "EM OBSERVACAO"}
 ${payload.activeLoop ? `- INSTRUCAO: o usuario esta no loop ${payload.activeLoop}. Leve isso em conta no tom e nas sugestoes sem nomear o loop diretamente na resposta, a menos que seja util.` : ""}
+${timeline?.alertaBurnout ? `- MODO BURNOUT FORCADO: ${timeline.diasEnergiaBaixa} dias com energia baixa. Uma frase. Sem tarefas. Acolha primeiro.` : ""}
 
 CONTINUIDADE TEMPORAL:
 - Ultima interacao: ${timeSince.label}
@@ -412,14 +504,14 @@ serve(async (request) => {
     }
     // ─────────────────────────────────────────────────────────────────────────
 
-    const [analyzedDocuments, profileRow] = await Promise.all([
+    const [analyzedDocuments, timeline] = await Promise.all([
       loadAnalyzedDocumentsForContext(user.id),
-      Promise.resolve(profileLimitRow as { ultima_interacao: string | null; ultimo_contexto: string | null } | null),
+      loadTimeline(user.id),
     ]);
 
-    const timeSince = getTimeSince(profileRow?.ultima_interacao ?? null);
-    const ultimoContexto = profileRow?.ultimo_contexto ?? null;
-    const systemPrompt = `${SYSTEM_PROMPT}\n\n${buildContext(payload, safeMessages, analyzedDocuments, timeSince, ultimoContexto)}`;
+    const timeSince = getTimeSince(profileLimitRow?.ultima_interacao ?? null);
+    const ultimoContexto = profileLimitRow?.ultimo_contexto ?? null;
+    const systemPrompt = `${SYSTEM_PROMPT}\n\n${buildContext(payload, safeMessages, analyzedDocuments, timeSince, ultimoContexto, timeline)}`;
     const anthropicPayload: Record<string, unknown> = {
       model: anthropicModel,
       max_tokens: 700,

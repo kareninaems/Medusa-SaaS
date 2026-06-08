@@ -60,6 +60,8 @@ serve(async (req) => {
   const body = await req.json();
   const conversationId: string | null = body?.conversation_id ?? null;
   const rawMessages: Array<{ role: string; content: string }> = body?.messages ?? [];
+  // energia passada pelo frontend (1=baixa, 2=media, 3=alta); null se nao informada
+  const energiaSessao: number | null = typeof body?.energy === "number" ? body.energy : null;
 
   if (rawMessages.length < 2) {
     return new Response(JSON.stringify({ ok: true, reason: "poucas mensagens" }), {
@@ -129,10 +131,10 @@ serve(async (req) => {
   }
 
   const now = new Date().toISOString();
+  const hoje = now.split("T")[0];
 
-  // Salvar follow-up se houve tarefa concreta
+  // ── Salvar follow-up se houve tarefa concreta ─────────────────────────────
   if (memoria.has_task && memoria.task_summary) {
-    // Expirar pendentes anteriores
     await adminClient
       .from("follow_ups")
       .update({ status: "expired", resolved_at: now })
@@ -155,7 +157,7 @@ serve(async (req) => {
     });
   }
 
-  // Consolidar na memoria do perfil (ultimas 10 sessoes)
+  // ── Consolidar na memoria do perfil (ultimas 10 sessoes) ──────────────────
   const { data: profile } = await adminClient
     .from("profiles")
     .select("memoria_consolidada")
@@ -186,6 +188,63 @@ serve(async (req) => {
       ultimo_contexto: memoria.resumo_conversa.slice(0, 120) || null,
     })
     .eq("id", user.id);
+
+  // ── Upsert na sessao diaria (linha do tempo) ──────────────────────────────
+  // Buscar sessao existente para calcular media acumulada de energia
+  const { data: sessaoExistente } = await adminClient
+    .from("sessoes_diarias")
+    .select("energia_media, energia_minima, energia_maxima, loops_detectados")
+    .eq("user_id", user.id)
+    .eq("data", hoje)
+    .maybeSingle();
+
+  // Calcular nova media/min/max de energia
+  let novaEnergiMedia: number | null = null;
+  let novaEnergiaMinima: number | null = null;
+  let novaEnergiaMaxima: number | null = null;
+
+  if (energiaSessao !== null) {
+    if (sessaoExistente?.energia_media != null) {
+      // Media ponderada simples entre valor anterior e atual
+      novaEnergiMedia = (Number(sessaoExistente.energia_media) + energiaSessao) / 2;
+    } else {
+      novaEnergiMedia = energiaSessao;
+    }
+    novaEnergiaMinima = sessaoExistente?.energia_minima != null
+      ? Math.min(sessaoExistente.energia_minima, energiaSessao)
+      : energiaSessao;
+    novaEnergiaMaxima = sessaoExistente?.energia_maxima != null
+      ? Math.max(sessaoExistente.energia_maxima, energiaSessao)
+      : energiaSessao;
+  } else {
+    novaEnergiMedia = sessaoExistente?.energia_media ?? null;
+    novaEnergiaMinima = sessaoExistente?.energia_minima ?? null;
+    novaEnergiaMaxima = sessaoExistente?.energia_maxima ?? null;
+  }
+
+  // Mesclar loops do dia (sem duplicatas)
+  const loopsAnteriores: string[] = Array.isArray(sessaoExistente?.loops_detectados)
+    ? sessaoExistente.loops_detectados
+    : [];
+  const loopsNovos = Array.isArray(memoria.padroes_observados)
+    ? memoria.padroes_observados.filter(Boolean)
+    : [];
+  const loopsMerged = [...new Set([...loopsAnteriores, ...loopsNovos])];
+
+  await adminClient
+    .from("sessoes_diarias")
+    .upsert({
+      user_id: user.id,
+      data: hoje,
+      energia_media: novaEnergiMedia,
+      energia_minima: novaEnergiaMinima,
+      energia_maxima: novaEnergiaMaxima,
+      loops_detectados: loopsMerged,
+      resumo_emocional: memoria.estado_emocional || null,
+      resumo_sessao: memoria.resumo_conversa.slice(0, 400) || null,
+      teve_tarefa: memoria.has_task,
+      updated_at: now,
+    }, { onConflict: "user_id,data" });
 
   return new Response(JSON.stringify({ ok: true, memoria }), {
     status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },

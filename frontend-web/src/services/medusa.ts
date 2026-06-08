@@ -627,10 +627,11 @@ export async function gerarMemoria(
   session: Session,
   conversationId: string | null,
   messages: Array<{ role: string; content: string }>,
+  energy?: number | null,
 ): Promise<void> {
   if (messages.length < 2) return;
   await supabase.functions.invoke("gerar-memoria", {
-    body: { conversation_id: conversationId, messages },
+    body: { conversation_id: conversationId, messages, energy: energy ?? null },
     headers: { Authorization: `Bearer ${session.access_token}` },
   });
 }
