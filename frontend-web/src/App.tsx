@@ -535,10 +535,14 @@ function ProductApp() {
     try {
       await updateEnergy(session.user.id, energy);
       const freshConversation = await createConversation(session.user.id);
+      const pendingFollowUp = await getPendingFollowUp(session.user.id);
       setProfile((current) => (current ? { ...current, energy_default: energy } : current));
       setConversation(freshConversation);
       setMessages([]);
       setCheckInEnergy(energy);
+      setFollowUpAction(pendingFollowUp?.task_summary ?? null);
+      setFollowUpResumo((pendingFollowUp as { resumo_conversa?: string } | null)?.resumo_conversa ?? null);
+      setFollowUpId(pendingFollowUp?.id ?? null);
       setCheckInDone(true);
       setShowWelcome(false);
       setLimiteAtingido(false);
