@@ -348,7 +348,7 @@ function ProductApp() {
   const [activeDocumentActionId, setActiveDocumentActionId] = useState<string | null>(null);
   const [checkingOut, setCheckingOut] = useState(false);
   const [error, setError] = useState("");
-  const [justCompletedOnboarding, setJustCompletedOnboarding] = useState(false);
+  const [justCompletedOnboarding, _setJustCompletedOnboarding] = useState(false);
   const [limiteAtingido, setLimiteAtingido] = useState(false);
   const [interacoesRestantes, setInteracoesRestantes] = useState<number | null>(null);
 
@@ -788,7 +788,7 @@ function ProductApp() {
       const positive = answer === "sim";
       const negative = answer === "nao";
       if (positive || negative) {
-        sendLoopFeedback(session, activeLoop.loop, activeLoop.triggeredIndices, currentEnergy, positive).catch(() => {});
+        sendLoopFeedback(session, activeLoop.loop, [], currentEnergy, positive).catch(() => {});
       }
     }
 

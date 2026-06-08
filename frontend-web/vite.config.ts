@@ -8,13 +8,7 @@ export default defineConfig({
     host: "0.0.0.0",
     port: 3000,
     allowedHosts: true,
-    hmr: import.meta.env?.VITE_HMR_HOST
-      ? {
-          protocol: "wss",
-          host: import.meta.env.VITE_HMR_HOST,
-          clientPort: 443,
-        }
-      : process.env.VITE_HMR_HOST
+    hmr: process.env.VITE_HMR_HOST
       ? {
           protocol: "wss",
           host: process.env.VITE_HMR_HOST,
