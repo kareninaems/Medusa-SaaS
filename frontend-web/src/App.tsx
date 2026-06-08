@@ -179,12 +179,10 @@ function computeBurnoutSignals(recentMessages: Message[]): {
 function isSameDay(isoDate: string): boolean {
   const created = new Date(isoDate);
   const now = new Date();
-
-  return (
-    created.getFullYear() === now.getFullYear() &&
-    created.getMonth() === now.getMonth() &&
-    created.getDate() === now.getDate()
-  );
+  // Compare in local timezone using locale string to avoid UTC vs local mismatch
+  const toLocalDay = (d: Date) =>
+    `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  return toLocalDay(created) === toLocalDay(now);
 }
 
 function ConsentGate({
