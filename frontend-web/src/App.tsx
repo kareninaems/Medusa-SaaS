@@ -929,8 +929,17 @@ function ProductApp() {
 
   const isAdmin = profile.role === "admin";
 
+  const TRIAL_DAYS = 7;
+  const accountCreatedAt = session?.user?.created_at ? new Date(session.user.created_at) : null;
+  const diasDesdeCreacao = accountCreatedAt
+    ? (Date.now() - accountCreatedAt.getTime()) / (1000 * 60 * 60 * 24)
+    : Infinity;
+  const isTrialAtivo = diasDesdeCreacao <= TRIAL_DAYS;
+  const diasRestantesTrial = isTrialAtivo ? Math.ceil(TRIAL_DAYS - diasDesdeCreacao) : 0;
+
   const isSubscribed =
     isAdmin ||
+    isTrialAtivo ||
     profile.subscription_status === "active" ||
     profile.subscription_status === "trialing";
 
@@ -1026,10 +1035,12 @@ function ProductApp() {
 
       {error ? <p className="status-error" data-testid="product-app-error">{error}</p> : null}
 
-      {profile.subscription_status === "trialing" && !isAdmin ? (
+      {isTrialAtivo && !isAdmin ? (
         <div className="trial-banner" data-testid="trial-banner">
-          Você está no período gratuito de 7 dias. Para continuar após o trial,{" "}
-          <button className="link-btn" onClick={handlePortal}>gerencie sua assinatura</button>.
+          {diasRestantesTrial <= 1
+            ? "Último dia do seu período gratuito. "
+            : `Você tem ${diasRestantesTrial} dias gratuitos restantes. `}
+          <button className="link-btn" onClick={handleCheckout}>Assine agora para continuar</button>.
         </div>
       ) : null}
 
