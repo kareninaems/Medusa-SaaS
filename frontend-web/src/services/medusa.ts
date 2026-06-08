@@ -582,7 +582,7 @@ export async function sendLoopFeedback(
 export async function callClaudeProxy(
   session: Session,
   payload: ClaudeProxyPayload,
-): Promise<{ reply: string; model: string }> {
+): Promise<{ reply: string; model: string; limitReached?: boolean; interacoesRestantes?: number }> {
   const { data, error } = await supabase.functions.invoke(functionName, {
     body: payload,
     headers: {
@@ -598,6 +598,8 @@ export async function callClaudeProxy(
   return {
     reply: data.reply,
     model: data?.model ?? "claude",
+    limitReached: data?.limitReached ?? false,
+    interacoesRestantes: data?.interacoesRestantes,
   };
 }
 

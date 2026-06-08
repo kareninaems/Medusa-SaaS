@@ -368,14 +368,51 @@ serve(async (request) => {
       );
     }
 
+    // ── Limite diário de interações ──────────────────────────────────────────
+    const hoje = new Date().toISOString().split("T")[0];
+
+    const { data: profileLimitRow, error: profileLimitError } = await adminClient
+      .from("profiles")
+      .select("interacoes_hoje, data_interacoes, ultima_interacao, ultimo_contexto")
+      .eq("id", user.id)
+      .single();
+
+    if (profileLimitError || !profileLimitRow) {
+      return new Response(JSON.stringify({ error: "Perfil não encontrado" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Reseta contador se mudou o dia
+    let interacoesHoje: number = profileLimitRow.interacoes_hoje ?? 0;
+    if (profileLimitRow.data_interacoes !== hoje) {
+      interacoesHoje = 0;
+      await adminClient
+        .from("profiles")
+        .update({ interacoes_hoje: 0, data_interacoes: hoje })
+        .eq("id", user.id);
+    }
+
+    const LIMITE_DIARIO = 50;
+    if (interacoesHoje >= LIMITE_DIARIO) {
+      return new Response(
+        JSON.stringify({
+          reply: "Você já conversou bastante comigo hoje. Seu cérebro merece uma pausa real. Nos falamos amanhã, combinado?",
+          limitReached: true,
+          interacoesRestantes: 0,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     const [analyzedDocuments, profileRow] = await Promise.all([
       loadAnalyzedDocumentsForContext(user.id),
-      adminClient
-        .from("profiles")
-        .select("ultima_interacao, ultimo_contexto")
-        .eq("id", user.id)
-        .single()
-        .then(({ data }) => data as { ultima_interacao: string | null; ultimo_contexto: string | null } | null),
+      Promise.resolve(profileLimitRow as { ultima_interacao: string | null; ultimo_contexto: string | null } | null),
     ]);
 
     const timeSince = getTimeSince(profileRow?.ultima_interacao ?? null);
@@ -494,6 +531,7 @@ serve(async (request) => {
     const lastUserMsg = [...safeMessages].reverse().find((m) => m.role === "user")?.content ?? "";
     const novoContexto = lastUserMsg.slice(0, 120).replace(/\s+/g, " ").trim();
 
+    const novasInteracoes = interacoesHoje + 1;
     await Promise.all([
       writeAuditLog({
         userId: user.id,
@@ -507,7 +545,12 @@ serve(async (request) => {
       }),
       adminClient
         .from("profiles")
-        .update({ ultima_interacao: new Date().toISOString(), ultimo_contexto: novoContexto || null })
+        .update({
+          ultima_interacao: new Date().toISOString(),
+          ultimo_contexto: novoContexto || null,
+          interacoes_hoje: novasInteracoes,
+          data_interacoes: hoje,
+        })
         .eq("id", user.id),
     ]);
 
@@ -515,6 +558,7 @@ serve(async (request) => {
       JSON.stringify({
         reply,
         model: anthropicModel,
+        interacoesRestantes: LIMITE_DIARIO - novasInteracoes,
       }),
       {
         status: 200,
