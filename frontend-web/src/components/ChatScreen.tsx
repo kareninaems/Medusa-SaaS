@@ -7,15 +7,17 @@ import type { EnergyLevel, Message } from "../types/medusa";
 interface ChatScreenProps {
   messages: Message[];
   sending?: boolean;
+  disabled?: boolean;
+  interacoesRestantes?: number | null;
   energy: EnergyLevel;
   onSend: (message: string) => Promise<void>;
   onBack: () => void | Promise<void>;
 }
 
-export function ChatScreen({ messages, sending = false, energy, onSend, onBack }: ChatScreenProps) {
+export function ChatScreen({ messages, sending = false, disabled = false, interacoesRestantes, energy, onSend, onBack }: ChatScreenProps) {
   const [input, setInput] = useState("");
 
-  const canSend = useMemo(() => !!input.trim() && !sending, [input, sending]);
+  const canSend = useMemo(() => !!input.trim() && !sending && !disabled, [input, sending, disabled]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -95,12 +97,19 @@ export function ChatScreen({ messages, sending = false, energy, onSend, onBack }
         ))}
       </div>
 
+      {interacoesRestantes !== null && interacoesRestantes !== undefined && interacoesRestantes <= 10 && !disabled ? (
+        <div className="interactions-banner" data-testid="chat-interactions-banner">
+          Você tem {interacoesRestantes} interaç{interacoesRestantes === 1 ? "ão" : "ões"} restante{interacoesRestantes === 1 ? "" : "s"} hoje.
+        </div>
+      ) : null}
+
       <form className="composer" onSubmit={handleSubmit} aria-label="Enviar mensagem">
         <textarea
           className="input textarea composer-input"
           value={input}
           onChange={(event) => setInput(event.target.value)}
-          placeholder="Descreva o que está pegando agora."
+          placeholder={disabled ? "Limite diário atingido. Até amanhã!" : "Descreva o que está pegando agora."}
+          disabled={disabled}
         />
         <div className="composer-actions">
           <button type="submit" className="primary-btn" disabled={!canSend}>

@@ -357,6 +357,8 @@ function ProductApp() {
   const [checkingOut, setCheckingOut] = useState(false);
   const [error, setError] = useState("");
   const [justCompletedOnboarding, setJustCompletedOnboarding] = useState(false);
+  const [limiteAtingido, setLimiteAtingido] = useState(false);
+  const [interacoesRestantes, setInteracoesRestantes] = useState<number | null>(null);
 
   const onboardingMissing = useMemo(() => {
     if (!profile?.onboarding) return true;
@@ -543,6 +545,7 @@ function ProductApp() {
       setCheckInEnergy(energy);
       setCheckInDone(true);
       setShowWelcome(false);
+      setLimiteAtingido(false);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Falha ao salvar check-in");
     } finally {
@@ -711,6 +714,28 @@ function ProductApp() {
         memory,
         activeLoop: activeLoop.loop ?? null,
       });
+
+      // Atualizar contador de interações restantes
+      if (proxyResponse.interacoesRestantes !== undefined) {
+        setInteracoesRestantes(proxyResponse.interacoesRestantes);
+      }
+
+      // Se limite atingido, exibir mensagem e bloquear input
+      if (proxyResponse.limitReached) {
+        setLimiteAtingido(true);
+        const limitMessage: Message = {
+          id: `local-limit-${Date.now()}`,
+          conversation_id: conversation.id,
+          user_id: session.user.id,
+          role: "assistant",
+          content: proxyResponse.reply,
+          energy: currentEnergy,
+          mode,
+          created_at: new Date().toISOString(),
+        };
+        setMessages((current) => [...current, limitMessage]);
+        return;
+      }
 
       const assistantMessage = await insertMessage({
         conversation_id: conversation.id,
@@ -1047,6 +1072,8 @@ function ProductApp() {
       <ChatScreen
         messages={messages}
         sending={sendingChat}
+        disabled={limiteAtingido}
+        interacoesRestantes={interacoesRestantes}
         energy={currentEnergy}
         onSend={handleSendMessage}
         onBack={handleEndChatSession}
