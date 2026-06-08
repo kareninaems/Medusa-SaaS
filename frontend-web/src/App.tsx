@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { Route, Routes, Link } from "react-router-dom";
 
+import { AdminPanel } from "./components/AdminPanel";
 import { AuthScreen } from "./components/AuthScreen";
 import { ChatScreen } from "./components/ChatScreen";
 import { CheckInScreen } from "./components/CheckInScreen";
@@ -334,6 +335,7 @@ function ProductApp() {
   const [checkInDone, setCheckInDone] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savingOnboarding, setSavingOnboarding] = useState(false);
   const [savingCheckIn, setSavingCheckIn] = useState(false);
@@ -925,8 +927,13 @@ function ProductApp() {
     );
   }
 
+  const isAdmin = profile.role === "admin";
+
   const isSubscribed =
-    profile.subscription_status === "active" || profile.subscription_status === "trialing";
+    isAdmin ||
+    profile.subscription_status === "active" ||
+    profile.subscription_status === "trialing";
+
   if (!isSubscribed) {
     return (
       <div className="app-shell">
@@ -936,6 +943,14 @@ function ProductApp() {
           loading={checkingOut}
           error={error || undefined}
         />
+      </div>
+    );
+  }
+
+  if (showAdmin && isAdmin) {
+    return (
+      <div className="app-shell">
+        <AdminPanel onBack={() => setShowAdmin(false)} />
       </div>
     );
   }
@@ -1011,6 +1026,26 @@ function ProductApp() {
 
       {error ? <p className="status-error" data-testid="product-app-error">{error}</p> : null}
 
+      {profile.subscription_status === "trialing" && !isAdmin ? (
+        <div className="trial-banner" data-testid="trial-banner">
+          Você está no período gratuito de 7 dias. Para continuar após o trial,{" "}
+          <button className="link-btn" onClick={handlePortal}>gerencie sua assinatura</button>.
+        </div>
+      ) : null}
+
+      {isAdmin ? (
+        <div style={{ padding: "0 1rem" }}>
+          <button
+            className="ghost-btn"
+            style={{ fontSize: "0.8rem" }}
+            onClick={() => setShowAdmin(true)}
+            data-testid="admin-panel-button"
+          >
+            ⚙ Admin
+          </button>
+        </div>
+      ) : null}
+
       <section className="chat-signals" data-testid="chat-signals-panel">
         {burnoutSignals.isRisk ? (
           <div className="signal-card signal-risk" data-testid="burnout-risk-card">
@@ -1082,6 +1117,7 @@ function App() {
       <Route path="/chat" element={<ProductApp />} />
       <Route path="/pricing" element={<ProductApp />} />
       <Route path="/configuracoes" element={<ProductApp />} />
+      <Route path="/admin" element={<ProductApp />} />
       <Route path="/app" element={<ProductApp />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />

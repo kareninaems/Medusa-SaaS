@@ -373,7 +373,7 @@ serve(async (request) => {
 
     const { data: profileLimitRow, error: profileLimitError } = await adminClient
       .from("profiles")
-      .select("interacoes_hoje, data_interacoes, ultima_interacao, ultimo_contexto")
+      .select("interacoes_hoje, data_interacoes, ultima_interacao, ultimo_contexto, role")
       .eq("id", user.id)
       .single();
 
@@ -383,6 +383,8 @@ serve(async (request) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const isAdmin = profileLimitRow.role === "admin";
 
     // Reseta contador se mudou o dia
     let interacoesHoje: number = profileLimitRow.interacoes_hoje ?? 0;
@@ -395,7 +397,7 @@ serve(async (request) => {
     }
 
     const LIMITE_DIARIO = 50;
-    if (interacoesHoje >= LIMITE_DIARIO) {
+    if (!isAdmin && interacoesHoje >= LIMITE_DIARIO) {
       return new Response(
         JSON.stringify({
           reply: "Você já conversou bastante comigo hoje. Seu cérebro merece uma pausa real. Nos falamos amanhã, combinado?",
@@ -558,7 +560,7 @@ serve(async (request) => {
       JSON.stringify({
         reply,
         model: anthropicModel,
-        interacoesRestantes: LIMITE_DIARIO - novasInteracoes,
+        interacoesRestantes: isAdmin ? null : LIMITE_DIARIO - novasInteracoes,
       }),
       {
         status: 200,

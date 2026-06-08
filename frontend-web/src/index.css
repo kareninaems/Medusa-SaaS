@@ -689,3 +689,34 @@ blockquote {
     max-width: 100%;
   }
 }
+
+.trial-banner {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  padding: 10px 16px;
+  margin: 0 1rem 0.75rem;
+  font-size: 0.875rem;
+  color: #92400e;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #92400e;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: inherit;
+}
+
+.interactions-banner {
+  background: #fef9c3;
+  border: 1px solid #eab308;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  color: #713f12;
+  margin: 0 0 0.5rem;
+}

@@ -55,6 +55,7 @@ export interface Profile {
   id: string;
   created_at: string;
   display_name: string | null;
+  role?: "user" | "admin";
   onboarding: ProfileOnboarding | null;
   energy_default: EnergyLevel | null;
   age_confirmed_at: string | null;
