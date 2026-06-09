@@ -23,7 +23,7 @@ export default function ProfileScreen() {
     if (!session) return;
     setLoadingPortal(true);
     try {
-      const url = await createPortalSession(session);
+      const url = await createPortalSession(session, "medusa://app/profile");
       await Linking.openURL(url);
     } catch {
       Alert.alert("Erro", "Não foi possível abrir o portal. Tente novamente.");
@@ -36,7 +36,7 @@ export default function ProfileScreen() {
     if (!session) return;
     setLoadingCheckout(true);
     try {
-      const url = await createCheckoutSession(session);
+      const url = await createCheckoutSession(session, "medusa://app/profile");
       await Linking.openURL(url);
     } catch {
       Alert.alert("Erro", "Não foi possível iniciar o pagamento. Tente novamente.");

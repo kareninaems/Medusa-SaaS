@@ -36,6 +36,8 @@ export interface ProfileOnboarding {
   triggers?: string[];
   works?: string[];
   does_not_work?: string[];
+  contexto_trabalho?: string | null;
+  principais_desafios?: string | null;
 }
 
 export interface Profile {
