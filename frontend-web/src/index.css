@@ -365,11 +365,23 @@ select:focus-visible {
 .chat-layout {
   width: min(760px, 100%);
   margin: 0 auto;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
   min-height: calc(100dvh - 170px);
 }
+
+/* No celular, os blocos do chat e o dicionario viram itens da mesma coluna. */
+.chat-main {
+  display: contents;
+}
+
+.chat-header { order: 1; }
+.chat-tools { order: 2; }
+.feelings-panel { order: 3; }
+.messages-scroll { order: 4; flex: 1; }
+.interactions-banner { order: 5; }
+.composer { order: 6; }
 
 .chat-header {
   display: flex;
@@ -819,4 +831,138 @@ blockquote {
 
 .attachment-note {
   font-size: 0.85rem;
+}
+
+.feelings-panel {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  padding: 12px;
+}
+
+.feelings-panel.feelings-open {
+  display: flex;
+}
+
+/* Com o dicionario aberto no celular, o campo de mensagem nao fica fixo por cima dele. */
+.chat-layout.feelings-active .composer {
+  position: static;
+}
+
+.feelings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.feelings-title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.feelings-close {
+  min-height: 44px;
+}
+
+.feelings-intro {
+  font-size: 0.88rem;
+}
+
+.feeling-group {
+  border-top: 1px solid var(--border);
+}
+
+.feeling-group summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  list-style-position: inside;
+}
+
+.feeling-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.feeling-name {
+  width: 100%;
+  min-height: 44px;
+  text-align: left;
+  background: transparent;
+  color: var(--text-main);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0 10px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.feeling-name:hover,
+.feeling-name-active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.feeling-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px 10px;
+  font-size: 0.95rem;
+}
+
+.feeling-detail p {
+  margin: 0;
+}
+
+.feeling-use-btn {
+  align-self: flex-start;
+  min-height: 44px;
+}
+
+@media (min-width: 960px) {
+  .chat-layout {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    column-gap: 18px;
+    align-items: start;
+  }
+
+  .chat-main {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: calc(100dvh - 210px);
+  }
+
+  .feelings-panel,
+  .feelings-panel.feelings-open {
+    display: flex;
+    position: sticky;
+    top: 12px;
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+  }
+
+  .feelings-toggle,
+  .feelings-close {
+    display: none;
+  }
+
+  .chat-layout.feelings-active .composer {
+    position: sticky;
+  }
 }

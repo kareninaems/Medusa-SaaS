@@ -10,6 +10,7 @@ import {
   isAcceptedAttachment,
 } from "../services/attachments";
 import type { EnergyLevel, Message } from "../types/medusa";
+import { FeelingsDictionary } from "./FeelingsDictionary";
 
 interface ChatScreenProps {
   messages: Message[];
@@ -37,7 +38,16 @@ export function ChatScreen({
   const [readingAttachment, setReadingAttachment] = useState(false);
   const [attachmentError, setAttachmentError] = useState("");
   const [copyStatus, setCopyStatus] = useState("");
+  const [showFeelings, setShowFeelings] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleUseFeeling = (feelingName: string) => {
+    const sentence = `Estou sentindo ${feelingName.toLowerCase()}.`;
+    setInput((current) => (current.trim() ? `${current.trim()} ${sentence}` : sentence));
+    setShowFeelings(false);
+    composerRef.current?.focus();
+  };
 
   const busy = sending || readingAttachment;
   const canSend = useMemo(
@@ -131,7 +141,8 @@ export function ChatScreen({
   };
 
   return (
-    <section className="chat-layout" aria-live="polite">
+    <section className={`chat-layout ${showFeelings ? "feelings-active" : ""}`}>
+      <div className="chat-main" aria-live="polite">
       <header className="chat-header">
         <button
           type="button"
@@ -154,6 +165,15 @@ export function ChatScreen({
           disabled={messages.length === 0}
         >
           Copiar conversa
+        </button>
+        <button
+          type="button"
+          className="ghost-btn chat-tool-btn feelings-toggle"
+          data-testid="feelings-toggle"
+          aria-expanded={showFeelings}
+          onClick={() => setShowFeelings((value) => !value)}
+        >
+          {showFeelings ? "Fechar dicionário" : "Dicionário de sentimentos"}
         </button>
         <span className="muted chat-tool-status" role="status">{copyStatus}</span>
       </div>
@@ -182,6 +202,7 @@ export function ChatScreen({
 
       <form className="composer" onSubmit={handleSubmit} aria-label="Enviar mensagem">
         <textarea
+          ref={composerRef}
           className="input textarea composer-input"
           value={input}
           onChange={(event) => setInput(event.target.value)}
@@ -235,6 +256,8 @@ export function ChatScreen({
           </button>
         </div>
       </form>
+      </div>
+      <FeelingsDictionary open={showFeelings} onUse={handleUseFeeling} onClose={() => setShowFeelings(false)} />
     </section>
   );
 }
