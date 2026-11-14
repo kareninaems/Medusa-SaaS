@@ -15,6 +15,12 @@ import { SettingsScreen } from "./components/SettingsScreen";
 import { PENDING_CONSENT_KEY, PRIVACY_VERSION, TERMS_VERSION } from "./constants/legal";
 import { supabase } from "./lib/supabase";
 import { detectLoop } from "./services/loopDetector";
+import {
+  appendSignalLog,
+  computeOverloadAlert,
+  signalsToPromptLines,
+  todayKey,
+} from "./services/overloadSignals";
 import { consolidateMemoryFromMessages } from "./services/memory-consolidation";
 import {
   triggerDocumentAnalysis,
@@ -40,6 +46,7 @@ import {
   recordUserConsent,
   resetUserData,
   sendLoopFeedback,
+  saveOnboardingFields,
   updateEnergy,
   updateOnboarding,
   upsertMemory,
@@ -373,6 +380,11 @@ function ProductApp() {
     return detectLoop(msgTexts, energyLog);
   }, [messages, recentSignals]);
   const burnoutSignals = useMemo(() => computeBurnoutSignals(recentSignals), [recentSignals]);
+  const overloadSignals = useMemo(() => profile?.onboarding?.overload_signals ?? [], [profile]);
+  const overloadAlert = useMemo(
+    () => computeOverloadAlert(profile?.onboarding?.overload_signal_log, todayKey()),
+    [profile],
+  );
 
   const bootstrap = async (activeSession: Session) => {
     setLoading(true);
@@ -527,15 +539,38 @@ function ProductApp() {
     }
   };
 
-  const handleCheckIn = async (energy: EnergyLevel) => {
+  const handleSaveOverloadSignals = async (signals: string[]) => {
+    if (!session || !profile) return;
+    const updated = await saveOnboardingFields(session.user.id, {
+      ...(profile.onboarding ?? {}),
+      overload_signals: signals,
+    });
+    setProfile(updated);
+  };
+
+  const handleCheckIn = async (energy: EnergyLevel, markedSignals: string[] = []) => {
     if (!session) return;
     setSavingCheckIn(true);
     setError("");
     try {
       await updateEnergy(session.user.id, energy);
+      let onboardingAfterCheckIn = profile?.onboarding ?? null;
+      if (profile && (profile.onboarding?.overload_signals?.length ?? 0) > 0) {
+        const withLog = await saveOnboardingFields(session.user.id, {
+          ...(profile.onboarding ?? {}),
+          overload_signal_log: appendSignalLog(
+            profile.onboarding?.overload_signal_log,
+            todayKey(),
+            markedSignals,
+          ),
+        });
+        onboardingAfterCheckIn = withLog.onboarding;
+      }
       const freshConversation = await createConversation(session.user.id);
       const pendingFollowUp = await getPendingFollowUp(session.user.id);
-      setProfile((current) => (current ? { ...current, energy_default: energy } : current));
+      setProfile((current) =>
+        current ? { ...current, energy_default: energy, onboarding: onboardingAfterCheckIn } : current,
+      );
       setConversation(freshConversation);
       setMessages([]);
       setCheckInEnergy(energy);
@@ -709,7 +744,14 @@ function ProductApp() {
         messages: historyForModel,
         energy: currentEnergy,
         mode,
-        onboarding: profile.onboarding ? { ...profile.onboarding, display_name: profile.display_name } : null,
+        onboarding: profile.onboarding
+          ? {
+              ...profile.onboarding,
+              display_name: profile.display_name,
+              overload_signal_log: undefined,
+              triggers: signalsToPromptLines(overloadSignals, overloadAlert),
+            }
+          : null,
         memory,
         activeLoop: activeLoop.loop ?? null,
       });
@@ -996,6 +1038,8 @@ function ProductApp() {
           defaultEnergy={profile.energy_default}
           showWelcome={showWelcome}
           displayName={getProfileName(profile, session)}
+          overloadSignals={overloadSignals}
+          onSaveSignals={handleSaveOverloadSignals}
           onConfirm={handleCheckIn}
         />
         {error ? <p className="status-error" data-testid="checkin-flow-error">{error}</p> : null}
@@ -1079,6 +1123,17 @@ function ProductApp() {
             <p className="signal-copy">
               Ultimos 3 dias com energia baixa. Hoje a recomendacao e protecao: nenhuma nova tarefa critica.
             </p>
+          </div>
+        ) : null}
+
+        {overloadAlert.active ? (
+          <div className="signal-card signal-risk" data-testid="overload-alert-card">
+            <p className="signal-title">Alerta de sobrecarga</p>
+            <p className="signal-copy">
+              Sinais marcados hoje: {overloadAlert.todaySignals.join(", ")}.
+              {overloadAlert.consecutiveDays ? " Segundo dia seguido com sinais." : ""}
+            </p>
+            <p className="signal-copy">Hoje a recomendação é reduzir: uma coisa por vez, nada novo.</p>
           </div>
         ) : null}
 

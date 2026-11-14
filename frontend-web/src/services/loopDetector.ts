@@ -95,7 +95,9 @@ function scoreLoop(
   energyLog: number[]
 ): number {
   if (loop === "BURNOUT") {
-    return energyLog.slice(-3).every(e => e <= 1) ? 1.0 : 0.0;
+    // Exige 3 registros reais: sem dados, nao ha como afirmar energia critica.
+    const lastThree = energyLog.slice(-3);
+    return lastThree.length >= 3 && lastThree.every(e => e <= 1) ? 1.0 : 0.0;
   }
 
   const triggers = TRIGGERS[loop];

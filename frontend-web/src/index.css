@@ -350,6 +350,18 @@ select:focus-visible {
   color: var(--text-secondary);
 }
 
+.energy-btn {
+  padding: 12px 10px;
+}
+
+.energy-desc {
+  font-size: 0.88rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  text-align: center;
+  max-width: 26ch;
+}
+
 .chat-layout {
   width: min(760px, 100%);
   margin: 0 auto;

@@ -104,6 +104,21 @@ export async function ensureProfile(session: Session): Promise<Profile> {
   return data as Profile;
 }
 
+export async function saveOnboardingFields(
+  userId: string,
+  onboarding: ProfileOnboarding,
+): Promise<Profile> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({ onboarding })
+    .eq("id", userId)
+    .select(PROFILE_COLUMNS)
+    .single();
+
+  if (error) throw error;
+  return data as Profile;
+}
+
 export async function updateOnboarding(
   userId: string,
   displayName: string,

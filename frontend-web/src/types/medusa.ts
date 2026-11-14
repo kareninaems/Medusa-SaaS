@@ -39,6 +39,12 @@ export interface ProfileOnboarding {
   energy_period?: string | null;
   medusa_goals?: string[];
 
+  // Sinais pessoais de sobrecarga (cadastro + registro diario do check-in)
+  overload_signals?: string[];
+  overload_signal_log?: Record<string, string[]>;
+  // Linhas de contexto enviadas ao modelo (campo "Gatilhos" do perfil no servidor)
+  triggers?: string[];
+
   // Legacy kept
   constraints?: string[];
   constraints_other?: string | null;
