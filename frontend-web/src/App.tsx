@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import medusaMark from "./assets/medusa.png";
 import type { Session } from "@supabase/supabase-js";
 import { Route, Routes, Link } from "react-router-dom";
 
@@ -1035,8 +1036,10 @@ function ProductApp() {
     <div className="app-shell">
       <header className="top-bar">
         <div className="brand-block">
-          <p className="eyebrow">Medusa</p>
-          <h1 className="app-title">Medusa</h1>
+          <div className="brand-row">
+            <img src={medusaMark} alt="" width={48} height={48} className="brand-mark" style={{ borderRadius: "12px" }} />
+            <h1 className="app-title">Medusa</h1>
+          </div>
           <p className="muted" data-testid="current-energy-indicator">Energia atual: {currentEnergy}</p>
           <p className="muted" data-testid="active-loop-indicator">
             Estado atual: {getFriendlyLoopLabel(activeLoop.loop)}

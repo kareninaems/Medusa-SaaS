@@ -1,11 +1,15 @@
 import { Link } from "react-router-dom";
+import medusaMark from "../assets/medusa.png";
 
 export function LandingPage() {
   return (
     <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
-      <header style={{ padding: "1.25rem 1.5rem", borderBottom: "1px solid var(--border)", background: "var(--surface)" }}>
+      <header style={{ padding: "1rem 1.5rem", borderBottom: "1px solid var(--border)" }}>
         <div style={{ maxWidth: "860px", margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <p style={{ fontWeight: 700, fontSize: "1.1rem", margin: 0 }}>Medusa</p>
+          <div className="brand-row">
+            <img src={medusaMark} alt="" width={40} height={40} className="brand-mark" style={{ borderRadius: "10px" }} />
+            <p className="brand-name">Medusa</p>
+          </div>
           <Link to="/login" style={{ textDecoration: "none" }}>
             <button className="primary-btn" style={{ minHeight: "38px", padding: "0 16px", fontSize: "0.95rem" }}>
               Entrar
@@ -17,9 +21,17 @@ export function LandingPage() {
       <main style={{ flex: 1, maxWidth: "860px", margin: "0 auto", padding: "3rem 1.5rem", display: "flex", flexDirection: "column", gap: "3.5rem" }}>
 
         <section style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: "620px" }}>
-          <p className="eyebrow">Para mentes que funcionam diferente</p>
+          <img
+            src={medusaMark}
+            alt="Medusa: cabeça de frente, com serpentes em guarda ao redor"
+            width={220}
+            height={220}
+            className="brand-mark"
+            style={{ marginLeft: "-20px" }}
+          />
+          <p className="eyebrow">Para quem sente e pensa tudo de uma vez</p>
           <h1 style={{ fontSize: "2.2rem", lineHeight: 1.25 }}>
-            Seu assistente de produtividade neurodivergente
+            Tudo de uma vez na cabeça. Uma coisa de cada vez com a Medusa.
           </h1>
           <p className="muted" style={{ fontSize: "1.1rem", lineHeight: 1.65 }}>
             TDAH, Autismo, Dislexia, Altas Habilidades — ou qualquer cérebro que funcione fora do padrão.

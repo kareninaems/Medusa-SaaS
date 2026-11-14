@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import medusaMark from "../assets/medusa.png";
 import type { FormEvent } from "react";
 
 import { isDisposableEmail } from "../constants/disposableDomains";
@@ -178,7 +179,10 @@ export function AuthScreen({ onAuthDone }: AuthScreenProps) {
   return (
     <div className="auth-shell" data-testid="auth-screen">
       <div className="auth-card" data-testid="auth-card">
-        <p className="eyebrow">Medusa</p>
+        <div className="brand-row">
+          <img src={medusaMark} alt="" width={44} height={44} className="brand-mark" style={{ borderRadius: "11px" }} />
+          <p className="brand-name">Medusa</p>
+        </div>
         <h1>{mode === "login" ? "Entrar" : "Criar conta"}</h1>
         <p className="auth-sub">Ferramenta de uso diário. Sem distrações.</p>
 
