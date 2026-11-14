@@ -21,6 +21,7 @@ import {
   signalsToPromptLines,
   todayKey,
 } from "./services/overloadSignals";
+import { readAttachment } from "./services/attachments";
 import { markHasAccount } from "./services/returningUser";
 import { consolidateMemoryFromMessages } from "./services/memory-consolidation";
 import {
@@ -1191,6 +1192,7 @@ function ProductApp() {
         energy={currentEnergy}
         onSend={handleSendMessage}
         onBack={handleEndChatSession}
+        onReadAttachment={(file) => readAttachment(session, file)}
       />
     </div>
   );

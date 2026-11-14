@@ -1,7 +1,14 @@
-import { useMemo, useState } from "react";
-import type { FormEvent } from "react";
+import { useMemo, useRef, useState } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import type { ReactNode } from "react";
 
+import {
+  ATTACHMENT_ACCEPT,
+  composeMessageWithAttachment,
+  conversationToText,
+  copyText,
+  isAcceptedAttachment,
+} from "../services/attachments";
 import type { EnergyLevel, Message } from "../types/medusa";
 
 interface ChatScreenProps {
@@ -12,19 +19,76 @@ interface ChatScreenProps {
   energy: EnergyLevel;
   onSend: (message: string) => Promise<void>;
   onBack: () => void | Promise<void>;
+  onReadAttachment?: (file: File) => Promise<string>;
 }
 
-export function ChatScreen({ messages, sending = false, disabled = false, interacoesRestantes, energy, onSend, onBack }: ChatScreenProps) {
+export function ChatScreen({
+  messages,
+  sending = false,
+  disabled = false,
+  interacoesRestantes,
+  energy,
+  onSend,
+  onBack,
+  onReadAttachment,
+}: ChatScreenProps) {
   const [input, setInput] = useState("");
+  const [attachment, setAttachment] = useState<File | null>(null);
+  const [readingAttachment, setReadingAttachment] = useState(false);
+  const [attachmentError, setAttachmentError] = useState("");
+  const [copyStatus, setCopyStatus] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const canSend = useMemo(() => !!input.trim() && !sending && !disabled, [input, sending, disabled]);
+  const busy = sending || readingAttachment;
+  const canSend = useMemo(
+    () => (!!input.trim() || !!attachment) && !busy && !disabled,
+    [input, attachment, busy, disabled],
+  );
+
+  const handlePickFile = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    event.target.value = "";
+    if (!file) return;
+    if (!isAcceptedAttachment(file)) {
+      setAttachmentError("Formato não aceito. Envie foto (JPG, PNG) ou PDF.");
+      return;
+    }
+    setAttachmentError("");
+    setAttachment(file);
+  };
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     if (!canSend) return;
-    const message = input.trim();
+    let message = input.trim();
+
+    if (attachment && onReadAttachment) {
+      setReadingAttachment(true);
+      setAttachmentError("");
+      try {
+        const description = await onReadAttachment(attachment);
+        message = composeMessageWithAttachment(message, attachment.name, description);
+      } catch (readError) {
+        setAttachmentError(readError instanceof Error ? readError.message : "Não foi possível ler o anexo.");
+        setReadingAttachment(false);
+        return;
+      }
+      setReadingAttachment(false);
+    }
+
     setInput("");
+    setAttachment(null);
     await onSend(message);
+  };
+
+  const handleCopyConversation = async () => {
+    try {
+      await copyText(conversationToText(messages));
+      setCopyStatus("Conversa copiada.");
+    } catch {
+      setCopyStatus("Não foi possível copiar.");
+    }
+    window.setTimeout(() => setCopyStatus(""), 2500);
   };
 
   const renderBoldLine = (line: string) => {
@@ -81,6 +145,19 @@ export function ChatScreen({ messages, sending = false, disabled = false, intera
         <p className="muted">Energia {energy}. Resposta objetiva em até 3 passos.</p>
       </header>
 
+      <div className="chat-tools">
+        <button
+          type="button"
+          className="ghost-btn chat-tool-btn"
+          data-testid="chat-copy-button"
+          onClick={handleCopyConversation}
+          disabled={messages.length === 0}
+        >
+          Copiar conversa
+        </button>
+        <span className="muted chat-tool-status" role="status">{copyStatus}</span>
+      </div>
+
       <div className="messages-scroll" role="log" aria-label="Histórico do chat">
         {messages.length === 0 ? (
           <p className="muted">Sem histórico ainda. Próximo passo: escreva uma pergunta objetiva.</p>
@@ -111,9 +188,50 @@ export function ChatScreen({ messages, sending = false, disabled = false, intera
           placeholder={disabled ? "Limite diário atingido. Até amanhã!" : "Descreva o que está pegando agora."}
           disabled={disabled}
         />
+        {attachment ? (
+          <div className="attachment-chip" data-testid="chat-attachment-chip">
+            <span className="attachment-name">Anexo: {attachment.name}</span>
+            <button
+              type="button"
+              className="link-btn"
+              onClick={() => setAttachment(null)}
+              disabled={busy}
+              aria-label={`Remover anexo ${attachment.name}`}
+            >
+              Remover
+            </button>
+          </div>
+        ) : null}
+        {attachmentError ? <p className="status-error" data-testid="chat-attachment-error">{attachmentError}</p> : null}
+        {onReadAttachment ? (
+          <p className="muted attachment-note">
+            Foto ou PDF: a Medusa lê o conteúdo uma vez e o arquivo não fica guardado.
+          </p>
+        ) : null}
         <div className="composer-actions">
+          {onReadAttachment ? (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={ATTACHMENT_ACCEPT}
+                onChange={handlePickFile}
+                hidden
+                data-testid="chat-attachment-input"
+              />
+              <button
+                type="button"
+                className="ghost-btn"
+                data-testid="chat-attachment-button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={busy || disabled}
+              >
+                Anexar foto ou arquivo
+              </button>
+            </>
+          ) : null}
           <button type="submit" className="primary-btn" disabled={!canSend}>
-            {sending ? "Enviando..." : "Enviar"}
+            {readingAttachment ? "Lendo anexo..." : sending ? "Enviando..." : "Enviar"}
           </button>
         </div>
       </form>
