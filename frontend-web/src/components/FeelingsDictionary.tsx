@@ -26,7 +26,9 @@ export function FeelingsDictionary({ open, onUse, onClose }: FeelingsDictionaryP
     const found: Feeling[] = [];
     for (const group of FEELING_GROUPS) {
       for (const feeling of group.feelings) {
-        const haystack = normalize(`${feeling.name} ${feeling.meaning} ${feeling.body}`);
+        const haystack = normalize(
+          `${feeling.name} ${feeling.question} ${feeling.meaning} ${feeling.body} ${feeling.example}`,
+        );
         if (haystack.includes(term)) found.push(feeling);
       }
     }
@@ -43,12 +45,14 @@ export function FeelingsDictionary({ open, onUse, onClose }: FeelingsDictionaryP
           aria-expanded={isSelected}
           onClick={() => setSelected(isSelected ? null : feeling.name)}
         >
-          {feeling.name}
+          <span className="feeling-question">{feeling.question}</span>
+          <span className="feeling-answer">Se sim: {feeling.name}</span>
         </button>
         {isSelected ? (
           <div className="feeling-detail">
             <p>{feeling.meaning}</p>
             <p className="muted">No corpo: {feeling.body}</p>
+            <p className="muted">Exemplo: {feeling.example}</p>
             <button type="button" className="ghost-btn feeling-use-btn" onClick={() => onUse(feeling.name)}>
               Usar no chat
             </button>
@@ -71,7 +75,7 @@ export function FeelingsDictionary({ open, onUse, onClose }: FeelingsDictionaryP
         </button>
       </div>
       <p className="muted feelings-intro">
-        Não sabe o nome do que sente? Procure pelo que acontece no corpo.
+        Abra um grupo e leia as perguntas. A pergunta em que a resposta é "sim" aponta o sentimento.
       </p>
       <label className="field">
         <span className="muted feelings-intro">Buscar</span>
