@@ -21,6 +21,7 @@ import {
   signalsToPromptLines,
   todayKey,
 } from "./services/overloadSignals";
+import { markHasAccount } from "./services/returningUser";
 import { consolidateMemoryFromMessages } from "./services/memory-consolidation";
 import {
   triggerDocumentAnalysis,
@@ -359,6 +360,10 @@ function ProductApp() {
   const [justCompletedOnboarding, _setJustCompletedOnboarding] = useState(false);
   const [limiteAtingido, setLimiteAtingido] = useState(false);
   const [interacoesRestantes, setInteracoesRestantes] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (session) markHasAccount();
+  }, [session]);
 
   const onboardingMissing = useMemo(() => {
     if (!profile?.onboarding) return true;

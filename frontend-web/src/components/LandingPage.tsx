@@ -1,7 +1,36 @@
-import { Link } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import medusaMark from "../assets/medusa.png";
+import { supabase } from "../lib/supabase";
+import { hasAccountFlag, markHasAccount } from "../services/returningUser";
 
 export function LandingPage() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // "?inicio=1" mostra a pagina inicial mesmo para quem ja tem conta.
+  const forceLanding = searchParams.get("inicio") === "1";
+
+  useEffect(() => {
+    if (forceLanding) return;
+    let cancelled = false;
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (cancelled || !data.session) return;
+        markHasAccount();
+        navigate("/app", { replace: true });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [forceLanding, navigate]);
+
+  // Quem ja entrou neste navegador vai direto para o login.
+  if (!forceLanding && hasAccountFlag()) {
+    return <Navigate to="/login" replace />;
+  }
+
   return (
     <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
       <header style={{ padding: "1rem 1.5rem", borderBottom: "1px solid var(--border)" }}>
@@ -38,9 +67,14 @@ export function LandingPage() {
             A Medusa não mede produtividade por tarefas concluídas.
           </p>
           <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "0.5rem" }}>
-            <Link to="/login" style={{ textDecoration: "none" }}>
+            <Link to="/login?modo=cadastro" style={{ textDecoration: "none" }}>
               <button className="primary-btn" style={{ padding: "0 24px" }}>
                 Começar agora
+              </button>
+            </Link>
+            <Link to="/login" style={{ textDecoration: "none" }}>
+              <button className="ghost-btn" style={{ padding: "0 24px" }}>
+                Já tenho conta
               </button>
             </Link>
           </div>
@@ -79,7 +113,7 @@ export function LandingPage() {
             <span style={{ fontSize: "1rem", fontWeight: 400, color: "var(--text-muted)" }}> / mês</span>
           </p>
           <p className="muted">Acesso completo. Cancele quando quiser.</p>
-          <Link to="/login" style={{ textDecoration: "none" }}>
+          <Link to="/login?modo=cadastro" style={{ textDecoration: "none" }}>
             <button className="primary-btn" style={{ padding: "0 24px", width: "100%" }}>
               Começar com 7 dias grátis
             </button>

@@ -73,9 +73,9 @@ export function ChatScreen({ messages, sending = false, disabled = false, intera
           type="button"
           className="ghost-btn chat-back-btn"
           onClick={onBack}
-          aria-label="Voltar ao menu"
+          aria-label="Voltar ao menu principal"
         >
-          ← Voltar
+          ← Menu principal
         </button>
         <h2>Medusa</h2>
         <p className="muted">Energia {energy}. Resposta objetiva em até 3 passos.</p>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import medusaMark from "../assets/medusa.png";
 import type { FormEvent } from "react";
+import { Link } from "react-router-dom";
 
 import { isDisposableEmail } from "../constants/disposableDomains";
 import { PENDING_CONSENT_KEY } from "../constants/legal";
@@ -14,7 +15,10 @@ interface AuthScreenProps {
 }
 
 export function AuthScreen({ onAuthDone }: AuthScreenProps) {
-  const [mode, setMode] = useState<"login" | "register">("login");
+  // "/login" abre em Login; "/login?modo=cadastro" abre em Cadastro.
+  const [mode, setMode] = useState<"login" | "register">(() =>
+    new URLSearchParams(window.location.search).get("modo") === "cadastro" ? "register" : "login",
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -179,6 +183,9 @@ export function AuthScreen({ onAuthDone }: AuthScreenProps) {
   return (
     <div className="auth-shell" data-testid="auth-screen">
       <div className="auth-card" data-testid="auth-card">
+        <Link to="/?inicio=1" className="back-link" data-testid="auth-home-link">
+          ← Menu principal
+        </Link>
         <div className="brand-row">
           <img src={medusaMark} alt="" width={44} height={44} className="brand-mark" style={{ borderRadius: "11px" }} />
           <p className="brand-name">Medusa</p>

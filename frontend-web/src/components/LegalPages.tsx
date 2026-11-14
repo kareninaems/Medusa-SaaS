@@ -12,7 +12,7 @@ function LegalLayout({ title, children }: { title: string; children: ReactNode }
         </p>
         <div className="legal-links-row">
           <Link to="/" data-testid="legal-back-to-product-link">
-            Voltar ao produto
+            ← Menu principal
           </Link>
           <Link to="/terms" data-testid="legal-terms-link">
             Termos
