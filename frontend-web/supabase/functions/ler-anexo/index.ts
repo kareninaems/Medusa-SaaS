@@ -34,12 +34,16 @@ const DAILY_LIMIT = 30;
 const STATUS_OK = "attachment_read";
 
 const READER_PROMPT =
-  "Voce le um anexo (foto ou PDF) que o usuario enviou a um assistente de organizacao pessoal. " +
-  "Responda em portugues, em texto corrido, com no maximo 700 caracteres. " +
-  "Se houver texto no anexo, priorize transcrever o essencial: tarefas, datas, horarios, valores e nomes de compromissos. " +
-  "Se nao houver texto, descreva objetivamente o que aparece. " +
+  "Voce le um anexo (foto, imagem ou PDF) que o usuario enviou a um assistente de organizacao pessoal. " +
+  "Responda em portugues, em texto corrido, sem titulos e sem markdown, com no maximo 600 caracteres. " +
+  "Se houver texto no anexo, transcreva o essencial: tarefas, datas, horarios, valores, nomes de compromissos e frases. " +
+  "Se nao houver texto (foto, desenho, logotipo, ilustracao), descreva objetivamente o que aparece: elementos, cores e cena. " +
+  "Sempre descreva alguma coisa. " +
   "Nao diagnostique, nao interprete exames nem saude, nao identifique pessoas pelo rosto e nao de conselhos. " +
-  "Se o anexo estiver ilegivel ou vazio, responda apenas: Anexo ilegivel.";
+  "Responda 'Anexo ilegivel' somente se a imagem estiver totalmente em branco, totalmente preta ou corrompida.";
+
+// Prefixo que deixa claro para a Medusa que o texto veio do anexo, nao da pessoa.
+const DESCRIPTION_PREFIX = "Conteúdo lido automaticamente do anexo (não foi escrito pelo usuário): ";
 
 function json(body: Record<string, unknown>, status: number): Response {
   return new Response(JSON.stringify(body), {
@@ -151,12 +155,12 @@ serve(async (request) => {
     }
 
     const blocks = Array.isArray(raw?.content) ? raw.content : [];
-    const description = blocks
+    const readText = blocks
       .filter((block: { type?: string }) => block?.type === "text")
       .map((block: { text?: string }) => block.text || "")
       .join("\n")
-      .trim()
-      .slice(0, MAX_DESCRIPTION_CHARS);
+      .trim();
+    const description = readText ? (DESCRIPTION_PREFIX + readText).slice(0, MAX_DESCRIPTION_CHARS) : "";
 
     if (!description) {
       await writeAuditLog(user.id, "attachment_empty");
