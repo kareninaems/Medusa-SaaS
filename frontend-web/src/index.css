@@ -979,3 +979,82 @@ blockquote {
     position: sticky;
   }
 }
+
+/* Modo crise: contatos de ajuda fixos no topo do chat */
+.crisis-panel {
+  width: min(760px, 100%);
+  margin: 0 auto;
+  position: sticky;
+  top: 8px;
+  z-index: 30;
+  border: 2px solid var(--error);
+  border-radius: 12px;
+  background: var(--surface-elevated);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.crisis-panel-attention {
+  position: static;
+  border: 1px solid var(--border-strong);
+  box-shadow: none;
+  padding: 8px 12px;
+}
+
+.crisis-title {
+  margin: 0;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.crisis-copy,
+.crisis-note {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+}
+
+.crisis-note {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.crisis-copy a {
+  color: var(--accent);
+}
+
+.crisis-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.crisis-btn {
+  flex: 1 1 140px;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text-main);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.crisis-btn-main {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.crisis-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

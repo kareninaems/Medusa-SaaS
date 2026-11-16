@@ -21,6 +21,8 @@ interface ChatScreenProps {
   onSend: (message: string) => Promise<void>;
   onBack: () => void | Promise<void>;
   onReadAttachment?: (file: File) => Promise<string>;
+  /** Modo crise: tarefas pausadas, sem anexos, sem aviso de limite. */
+  crisisMode?: boolean;
 }
 
 export function ChatScreen({
@@ -32,6 +34,7 @@ export function ChatScreen({
   onSend,
   onBack,
   onReadAttachment,
+  crisisMode = false,
 }: ChatScreenProps) {
   const [input, setInput] = useState("");
   const [attachment, setAttachment] = useState<File | null>(null);
@@ -153,7 +156,9 @@ export function ChatScreen({
           ← Menu principal
         </button>
         <h2>Medusa</h2>
-        <p className="muted">Energia {energy}. Resposta objetiva em até 3 passos.</p>
+        <p className="muted">
+          {crisisMode ? "Modo crise. Tarefas pausadas. A Medusa continua aqui." : `Energia ${energy}. Resposta objetiva em até 3 passos.`}
+        </p>
       </header>
 
       <div className="chat-tools">
@@ -194,7 +199,7 @@ export function ChatScreen({
         ))}
       </div>
 
-      {interacoesRestantes !== null && interacoesRestantes !== undefined && interacoesRestantes <= 10 && !disabled ? (
+      {interacoesRestantes !== null && interacoesRestantes !== undefined && interacoesRestantes <= 10 && !disabled && !crisisMode ? (
         <div className="interactions-banner" data-testid="chat-interactions-banner">
           Você tem {interacoesRestantes} interaç{interacoesRestantes === 1 ? "ão" : "ões"} restante{interacoesRestantes === 1 ? "" : "s"} hoje.
         </div>
@@ -206,7 +211,13 @@ export function ChatScreen({
           className="input textarea composer-input"
           value={input}
           onChange={(event) => setInput(event.target.value)}
-          placeholder={disabled ? "Limite diário atingido. Até amanhã!" : "Descreva o que está pegando agora."}
+          placeholder={
+            crisisMode
+              ? "Escreva aqui. Pode ser uma palavra só."
+              : disabled
+                ? "Limite diário atingido. Até amanhã!"
+                : "Descreva o que está pegando agora."
+          }
           disabled={disabled}
         />
         {attachment ? (

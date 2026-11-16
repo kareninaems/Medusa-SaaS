@@ -6,6 +6,7 @@ import { Route, Routes, Link } from "react-router-dom";
 import { AdminPanel } from "./components/AdminPanel";
 import { AuthScreen } from "./components/AuthScreen";
 import { ChatScreen } from "./components/ChatScreen";
+import { CrisisPanel } from "./components/CrisisPanel";
 import { CheckInScreen } from "./components/CheckInScreen";
 import { LandingPage } from "./components/LandingPage";
 import { CrisisPage, PrivacyPage, TermsPage } from "./components/LegalPages";
@@ -22,6 +23,8 @@ import {
   todayKey,
 } from "./services/overloadSignals";
 import { readAttachment } from "./services/attachments";
+import { assessRisk, CRISIS_LOCAL_FALLBACK, getCrisisState } from "./services/crisis";
+import type { CrisisLevel, CrisisResult } from "./services/crisis";
 import { markHasAccount } from "./services/returningUser";
 import { consolidateMemoryFromMessages } from "./services/memory-consolidation";
 import {
@@ -95,6 +98,14 @@ const CRISIS_TERMS = [
   "plano para morrer",
   "remedio para morrer",
   "tomar remedio para morrer",
+  "autoexterminio",
+  "mutilacao",
+  "me mutilar",
+  "me cortar",
+  "me machucar",
+  "tirar minha vida",
+  "tirar a minha vida",
+  "nao quero mais viver",
 ];
 
 
@@ -360,6 +371,8 @@ function ProductApp() {
   const [error, setError] = useState("");
   const [justCompletedOnboarding, _setJustCompletedOnboarding] = useState(false);
   const [limiteAtingido, setLimiteAtingido] = useState(false);
+  // Modo crise: nivel decidido e salvo no servidor (0 sem sinal, 1 atencao, 2 risco, 3 risco imediato).
+  const [crisisLevel, setCrisisLevel] = useState<CrisisLevel>(0);
   const [interacoesRestantes, setInteracoesRestantes] = useState<number | null>(null);
 
   useEffect(() => {
@@ -410,7 +423,8 @@ function ProductApp() {
       const latestConversation = await getLatestConversation(activeSession.user.id);
       const canReuseConversation = Boolean(latestConversation?.created_at && isSameDay(latestConversation.created_at));
 
-      const [loadedMemory, loadedDocuments, loadedMessages, loadedRecentSignals] = await Promise.all([
+      const [loadedCrisis, loadedMemory, loadedDocuments, loadedMessages, loadedRecentSignals] = await Promise.all([
+        getCrisisState(activeSession).catch(() => null),
         getMemory(activeSession.user.id),
         listUserDocuments(activeSession.user.id),
         canReuseConversation && latestConversation ? getMessages(latestConversation.id) : Promise.resolve([]),
@@ -422,6 +436,7 @@ function ProductApp() {
       const nextFollowUpAction = pendingFollowUp?.task_summary ?? null;
       const nextFollowUpResumo = (pendingFollowUp as { resumo_conversa?: string } | null)?.resumo_conversa ?? null;
 
+      if (loadedCrisis) setCrisisLevel(loadedCrisis.level);
       setProfile(ensuredProfile);
       setConversation(canReuseConversation ? latestConversation : null);
       setMessages(loadedMessages);
@@ -472,6 +487,7 @@ function ProductApp() {
         setMessages([]);
         setDocuments([]);
         setMemory(null);
+        setCrisisLevel(0);
         setLoading(false);
       }
     });
@@ -738,6 +754,47 @@ function ProductApp() {
       });
       setMessages((current) => [...current, userMessage]);
 
+      // Modo crise: o risco e avaliado antes de qualquer resposta de tarefa.
+      // Nos niveis 2 e 3 a resposta vem do avaliador e o claude-proxy nao e chamado.
+      let crisis: CrisisResult | null = null;
+      try {
+        crisis = await assessRisk(session, text);
+      } catch {
+        // Avaliador fora do ar: palavra de risco, ou trava ja ativa, mantem o modo crise.
+        if (hasCrisisSignal(text) || crisisLevel >= 2) {
+          crisis = { level: crisisLevel >= 2 ? crisisLevel : 2, locked: true, reply: CRISIS_LOCAL_FALLBACK };
+        }
+      }
+      if (crisis) {
+        setCrisisLevel(crisis.level);
+        if (crisis.reply) {
+          let crisisMessage: Message;
+          try {
+            crisisMessage = await insertMessage({
+              conversation_id: conversation.id,
+              user_id: session.user.id,
+              role: "assistant",
+              content: crisis.reply,
+              energy: currentEnergy,
+              mode: "CRISE",
+            });
+          } catch {
+            crisisMessage = {
+              id: `local-crisis-${Date.now()}`,
+              conversation_id: conversation.id,
+              user_id: session.user.id,
+              role: "assistant",
+              content: crisis.reply,
+              energy: currentEnergy,
+              mode: "CRISE",
+              created_at: new Date().toISOString(),
+            };
+          }
+          setMessages((current) => [...current, crisisMessage]);
+          return;
+        }
+      }
+
       const historyForModel = [...messages, userMessage]
         .filter((item) => item.role === "user" || item.role === "assistant")
         .slice(-12)
@@ -804,6 +861,7 @@ function ProductApp() {
       });
     } catch (chatError) {
       if (hasCrisisSignal(text)) {
+        setCrisisLevel((current) => (current >= 2 ? current : 2));
         try {
           const fallbackAssistantMessage = await insertMessage({
             conversation_id: conversation.id,
@@ -1122,6 +1180,9 @@ function ProductApp() {
         </div>
       ) : null}
 
+      <CrisisPanel level={crisisLevel} />
+
+      {crisisLevel >= 2 ? null : (
       <section className="chat-signals" data-testid="chat-signals-panel">
         {burnoutSignals.isRisk ? (
           <div className="signal-card signal-risk" data-testid="burnout-risk-card">
@@ -1183,16 +1244,18 @@ function ProductApp() {
           Carga da semana: {burnoutSignals.lowDays} dia(s) de energia baixa em {burnoutSignals.trackedDays} dia(s) com registro.
         </p>
       </section>
+      )}
 
       <ChatScreen
         messages={messages}
         sending={sendingChat}
-        disabled={limiteAtingido}
+        disabled={limiteAtingido && crisisLevel < 2}
+        crisisMode={crisisLevel >= 2}
         interacoesRestantes={interacoesRestantes}
         energy={currentEnergy}
         onSend={handleSendMessage}
         onBack={handleEndChatSession}
-        onReadAttachment={(file) => readAttachment(session, file)}
+        onReadAttachment={crisisLevel >= 2 ? undefined : (file) => readAttachment(session, file)}
       />
     </div>
   );
